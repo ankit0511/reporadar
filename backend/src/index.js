@@ -17,5 +17,5 @@ app.get("/api/health", (req, res) => {
 
 
 app.listen(port, () => {
-    console.log("App is runnnig on the port", port)
+    console.log("App is runnnig on the port ", port)
 })

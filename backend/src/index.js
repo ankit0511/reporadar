@@ -8,8 +8,8 @@ dotenv.config({ path: "../.env" });
 connectDB()
 const port = process.env.PORT || 8000;
 
-app.use("/api/repos", repoRoute)
-app.use("/api/preference", preferanceRoute)
+app.use("/api/repos", repoRoute);
+app.use("/api/preference", preferanceRoute);
 
 app.get("/api/health", (req, res) => {
     res.json({ status: "ok", message: "Backend is  running fine" })

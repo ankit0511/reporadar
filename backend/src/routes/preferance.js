@@ -50,4 +50,44 @@ router.post("/:githubId", async (req, res) => {
   }
 });
 
+router.get("/isOnBoarded/:githubId", async (req, res) => {
+  try {
+    const { githubId } = req.params;
+
+    if (!githubId) {
+      return res.status(400).json({
+        error: "GitHub Id is required",
+        message: "GitHub Id is required",
+      });
+    }
+
+    const user = await User.findOne({ githubId });
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+        onboarding: false,
+      });
+    }
+
+    if (user.onboardingCompleted) {
+      return res.status(200).json({
+        message: "User onboarding done",
+        onboarding: true,
+      });
+    } else {
+      return res.status(200).json({
+        message: "Need to onboard User",
+        onboarding: false,
+      });
+    }
+
+  } catch (err) {
+    return res.status(500).json({
+      error: "Error getting user details",
+      message: err.message,
+    });
+  }
+});
+
 export default router;

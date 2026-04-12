@@ -50,6 +50,42 @@ router.post("/:githubId", async (req, res) => {
   }
 });
 
+router.get("/:githubId", async (req, res) => {
+  try {
+    const { githubId } = req.params;
+
+    if (!githubId) {
+      return res.status(400).json({
+        error: "githubId is required",
+        message: "githubId is required"
+      });
+    }
+
+    const preferences = await User.findOne({ githubId });
+    console.log("pref", preferences)
+    if (!preferences) {
+      return res.status(404).json({
+        error: "No user found",
+        message: "No user with this githubId found"
+      });
+    }
+
+    return res.status(200).json({
+      message: "Preferences fetched successfully",
+      language: preferences.preference.language,
+      topic: preferences.preference.topic,
+      experience: preferences.preference.experience
+    });
+
+  } catch (err) {
+    return res.status(500).json({
+      error: "Something went wrong while fetching preferences",
+      message: err.message
+    });
+  }
+});
+
+
 router.get("/isOnBoarded/:githubId", async (req, res) => {
   try {
     const { githubId } = req.params;

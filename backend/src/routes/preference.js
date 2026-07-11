@@ -85,7 +85,6 @@ router.get("/:githubId", async (req, res) => {
   }
 });
 
-
 router.get("/isOnBoarded/:githubId", async (req, res) => {
   try {
     const { githubId } = req.params;

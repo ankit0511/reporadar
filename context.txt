@@ -1,0 +1,247 @@
+# RepoRadar — Project Context File
+
+## What We Are Building
+A personalised open source contribution discovery engine.
+Helps developers find GitHub repos that match their skill level, stack, and contribution goals — powered by AI.
+
+**One line pitch:** "GitHub search finds repos by keywords. We find repos by who YOU are."
+
+---
+
+## Target User
+Developers of any experience level who want to contribute to open source but feel lost in GitHub's sea of repositories. They don't know which projects match their skill level, where their contributions would be welcome, or how to find hidden gems worth their time.
+
+---
+
+## Core Features
+1. Login with GitHub (OAuth)
+2. Onboarding (collect user preferences)
+3. Personalised repo feed on initial load
+4. Search + filters → GitHub API
+5. AI recommendations (Claude)
+6. Save / like repos
+
+---
+
+## Architecture Flow
+
+### Phase 1 — Auth
+- User clicks "Login with GitHub"
+- GitHub OAuth returns token + user info
+- Backend saves user + token to MongoDB
+
+### Phase 2 — Onboarding
+- 3 questions after first login:
+  1. Favourite languages (Python, JS, Go...)
+  2. Topics of interest (ML, Web, DevOps...)
+  3. Experience level (beginner / intermediate / expert)
+  4. Have you contributed before? (yes/no)
+- Saved to DB → used everywhere in the app
+
+### Phase 3 — Dashboard (initial load)
+- Instead of "all repos" → personalised feed based on onboarding profile
+- Default query: language + topic from preferences, stars:>500
+
+### Phase 4 — Search + Filters
+- User applies filters (language, stars, topic, date updated)
+- Backend forms GitHub API query
+- Paginated results
+
+### Phase 5 — AI Recommendations (Hybrid system)
+- User types natural language query
+- Claude receives: query + user profile from DB
+- Claude decides:
+  - Does it have enough info? If not → asks clarifying questions
+  - Concrete query (language, stars) → GitHub API call
+  - Vague/abstract query (beginner friendly, good for resume) → Claude answers directly from knowledge
+  - Mixed → both
+
+---
+
+## Key Design Decisions
+
+### GitHub Auth Strategy
+Going with Option 1 — Login with GitHub (OAuth).
+Users are developers, they already have GitHub accounts.
+Automatically gives us their GitHub token (5000 req/hour per user).
+
+### Read/Write Ratio
+Mostly reads (~10:1). Searches happen once but results are read many times.
+Implication: cache aggressively, optimise GET endpoints.
+
+### AI Query Handling
+Claude decides whether to:
+- Call GitHub API (concrete, filterable queries)
+- Answer directly from knowledge (vague, abstract queries)
+- Ask clarifying questions (not enough info)
+User's onboarding profile is sent with every AI query to reduce clarifying questions needed.
+
+### Initial Load
+NOT "all repos" — GitHub has 330M+, can't load all.
+Instead: personalised feed using onboarding data.
+
+---
+
+## Tech Stack
+
+### Frontend
+- React + Vite
+- Tailwind CSS
+- React Router
+- Space Grotesk font (headings) + JetBrains Mono (code/stats)
+
+### Backend
+- Node.js + Express
+- MongoDB + Mongoose
+- Passport.js + passport-github2 (OAuth)
+- express-session (sessions)
+- axios (GitHub API + Claude API calls)
+
+### Project Structure
+- Monorepo (frontend + backend in one repo)
+- REST API
+
+---
+
+## UI Design Decisions
+
+### Theme
+- Dark mode primary (black #080808)
+- Light/dark toggle for users
+- Secondary color: Cool silver/white-gray mixture
+- Glow effects throughout using white/silver
+
+### Font
+- Space Grotesk (headings, UI)
+- JetBrains Mono (repo stats, code elements)
+
+### Landing Page (Hero Section)
+- Black background
+- Dotted world map PNG (grayscale, low opacity) as background
+- Animated dashed connection lines between continents
+- Pulsing hotspot dots on continents
+- Radial glow orb top-right (white/silver)
+- Left side fades to black with gradient
+- Dot grid texture over everything
+- Navbar: logo left, "Login with GitHub" button right (no other nav items)
+- Hero text: typing animation cycling through 5 phrases
+- Badge: "Built for open source contributors"
+- Two CTAs: "Explore now ↗" (white filled) + "See how it works ↓" (ghost)
+- Stats bar at bottom: 330M+ repos, AI powered, 0 manual filtering
+
+### Landing Page (Below fold)
+- Testimonials moving carousel (planned, not built yet)
+- GitHub avatars fetched from real profiles
+- Live user counter for social proof
+
+---
+
+## Folder Structure
+
+```
+reporadar/
+├── frontend/
+├── backend/
+│   ├── src/
+│   │   ├── config/
+│   │   │   ├── db.js
+│   │   │   └── passport.js       (not built yet)
+│   │   ├── models/
+│   │   │   ├── User.js           ✓ built
+│   │   │   └── SavedRepo.js      (not built yet)
+│   │   ├── routes/
+│   │   │   ├── auth.js           (placeholder)
+│   │   │   ├── repos.js          (placeholder)
+│   │   │   ├── ai.js             (placeholder)
+│   │   │   └── user.js           ✓ built
+│   │   ├── middleware/
+│   │   │   └── protect.js        (not built yet)
+│   │   ├── controllers/          (not built yet)
+│   │   └── index.js              ✓ built
+│   ├── .env
+│   └── package.json
+└── package.json
+```
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Status | What it does |
+|--------|----------|--------|--------------|
+| GET | /api/health | ✓ built | Server health check |
+| GET | /api/auth/github | not built | Redirect to GitHub OAuth |
+| GET | /api/auth/github/callback | not built | GitHub redirects back here |
+| GET | /api/auth/me | not built | Get current logged in user |
+| POST | /api/auth/logout | not built | Logout |
+| POST | /api/user/preferences/:githubId | ✓ built | Save user preferences |
+| GET | /api/user/preferences/:githubId | ✓ built | Get user preferences |
+| GET | /api/repos/search | not built | Search GitHub repos with filters |
+| GET | /api/repos/saved | not built | Get user's saved repos |
+| POST | /api/repos/save | not built | Save a repo |
+| DELETE | /api/repos/saved/:id | not built | Remove a saved repo |
+| POST | /api/ai/query | not built | Send query to Claude → get repos |
+
+---
+
+## User Model Schema
+
+```js
+{
+  githubId: String (unique),
+  username: String,
+  email: String,
+  avatar: String,
+  githubToken: String,
+  preferences: {
+    languages: [String],
+    topics: [String],
+    experienceLevel: enum["beginner","intermediate","expert"],
+    hasContributedBefore: Boolean
+  },
+  onboardingCompleted: Boolean,
+  timestamps: true
+}
+```
+
+---
+
+## .env Variables Needed
+
+```
+PORT=5000
+NODE_ENV=development
+CLIENT_URL=http://localhost:5173
+MONGODB_URI=mongodb://localhost:27017
+SESSION_SECRET=your_long_random_secret
+GITHUB_CLIENT_ID=from github oauth app
+GITHUB_CLIENT_SECRET=from github oauth app
+GITHUB_CALLBACK_URL=http://localhost:5000/api/auth/github/callback
+ANTHROPIC_API_KEY=from console.anthropic.com
+```
+
+---
+
+## What's Built So Far
+- index.js (Express server setup, middleware, route mounting)
+- config/db.js (MongoDB connection with event listeners)
+- models/User.js (full user schema with preferences)
+- routes/user.js (POST + GET preferences — fully functional)
+- package.json (all dependencies listed)
+- .env.example
+
+## What's Next (in order)
+1. routes/auth.js — GitHub OAuth (passport.js setup)
+2. middleware/protect.js — route protection
+3. routes/repos.js — GitHub API search with filters
+4. routes/ai.js — Claude AI query handler
+5. models/SavedRepo.js — saved repos schema
+6. Frontend — React app
+
+---
+
+## Build Philosophy
+- One fully functional route at a time
+- No over-engineering — this is a portfolio/learning project (~1000 users max)
+- Middleware added after basic routes work
+- Ship milestone 1 (login + search) before adding AI

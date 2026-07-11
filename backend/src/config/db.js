@@ -3,18 +3,26 @@ import mongoose from "mongoose"
 const connectDB = async ()=>{
     try {
         mongoose.connection.on("connected",()=>{
-            console.log("Mongoose Connected Successfully")
+            console.log("✓ Mongoose Connected Successfully")
         })
-        mongoose.connection.on("error",()=>{
-            console.log("Error connecting to the Db")
+
+        mongoose.connection.on("error",(error)=>{
+            console.error("✗ MongoDB Error:", error.message)
         })
 
         mongoose.connection.on("disconnect", ()=>{
-            console.log("disconnected ")
+            console.warn("⚠ MongoDB Disconnected")
         })
-        await mongoose.connect(process.env.MONGO_CONNECTION_STRING,{dbName : "reporadar",})
+
+        console.log("Attempting to connect to MongoDB...")
+        await mongoose.connect(process.env.MONGO_CONNECTION_STRING, {
+            dbName: "reporadar",
+            serverSelectionTimeoutMS: 15000,
+            socketTimeoutMS: 45000,
+        })
     } catch (error) {
-        console.log("Error Connecting to the db ", error )
+        console.error("✗ MongoDB Connection Failed:", error.message)
+        console.error("Connection String:", process.env.MONGO_CONNECTION_STRING?.substring(0, 50) + "...")
         process.exit(1)
     }
 }

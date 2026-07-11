@@ -17,6 +17,10 @@ const userSchema = new mongoose.Schema({
     avatar: {
         type: String
     },
+    githubToken: {
+        type: String,
+        required: true
+    },
     preference: {
         language: {
             type: [String],

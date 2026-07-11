@@ -42,7 +42,7 @@ passport.use(
               githubToken: accessToken, // Store the token so we can use it later for API calls
             },
           },
-          { new: true, upsert: true }
+          { returnDocument: 'after', upsert: true }
         );
 
         // done(error, user) — tells Passport the authentication succeeded
@@ -64,9 +64,18 @@ passport.serializeUser((user, done) => {
 // On every request, this runs to populate req.user
 passport.deserializeUser(async (id, done) => {
   try {
+    console.log("🔍 Deserializing user with ID:", id);
     const user = await User.findById(id);
+
+    if (!user) {
+      console.warn("⚠️ User not found in MongoDB for ID:", id);
+      return done(null, null);
+    }
+
+    console.log("✓ User deserialized:", user.userName);
     done(null, user);
   } catch (error) {
+    console.error("❌ Deserialization error:", error.message);
     done(error);
   }
 });

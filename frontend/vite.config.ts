@@ -11,4 +11,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    include: ['react-simple-maps', 'prop-types', 'd3-geo', 'd3-selection', 'd3-zoom', 'topojson-client'],
+  },
 })

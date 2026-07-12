@@ -1,4 +1,5 @@
-import {  Bird } from "lucide-react";
+import { X } from "lucide-react";
+import { GithubIcon } from "@/components/icons/GithubIcon";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -65,15 +66,12 @@ export function Footer() {
           </p>
 
           {/* Social Links */}
-          <div className="flex gap-4">
-            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-secondary transition-colors" aria-label="GitHub">
-              <Bird className="w-5 h-5" />
+          <div className="flex gap-2">
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" aria-label="GitHub">
+              <GithubIcon className="w-5 h-5" />
             </a>
-            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-secondary transition-colors" aria-label="Twitter">
-              <Bird className="w-5 h-5" />
-            </a>
-            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg hover:bg-secondary transition-colors" aria-label="LinkedIn">
-              <Bird className="w-5 h-5" />
+            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" aria-label="X (Twitter)">
+              <X className="w-5 h-5" />
             </a>
           </div>
         </div>

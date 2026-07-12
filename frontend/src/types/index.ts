@@ -20,9 +20,6 @@ export interface UserPreference {
   hasContributed: boolean;
 }
 
-// Theme type
-export type Theme = "light" | "dark" | "system";
-
 // Auth context type
 export interface AuthContextType {
   user: User | null;
@@ -30,14 +27,6 @@ export interface AuthContextType {
   loading: boolean;
   logout: () => void;
   setUser: (user: User | null) => void;
-}
-
-// Theme context type
-export interface ThemeContextType {
-  theme: Theme;
-  resolvedTheme: "light" | "dark";
-  toggleTheme: () => void;
-  setTheme: (theme: Theme) => void;
 }
 
 // Preference context type

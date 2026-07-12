@@ -3,17 +3,13 @@ import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Sparkles } from "lucide-react";
 import { WorldMap, ACTIVITY_CITIES } from "@/components/WorldMap";
-import { LiveActivityToast } from "@/components/LiveActivityToast";
-import { HexagonPattern } from "@/components/HexagonPattern";
 import { useAuth } from "@/context/AuthContext";
 
 const API_BASE = "http://localhost:5000";
 
 export function Hero() {
   const [query, setQuery] = useState("");
-  const [activeCity, setActiveCity] = useState<
-    (typeof ACTIVITY_CITIES)[number] | null
-  >(null);
+  const [activeCity] = useState<(typeof ACTIVITY_CITIES)[number] | null>(null);
 
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
@@ -31,7 +27,6 @@ export function Hero() {
 
   return (
     <section className="relative min-h-screen overflow-hidden bg-background">
-      <HexagonPattern corner="top-left" />
       {/* World Map (Behind Content) */}
       <div className="hidden lg:block absolute right-16 top-1/2 -translate-y-1/3 translate-x-0 z-0 pointer-events-none">
         <div className="relative h-100 w-250 opacity-80">
@@ -85,10 +80,6 @@ export function Hero() {
           </form>
         </div>
       </div>
-
-      {/* Live Activity Toast */}
-      {/* Uncomment if needed */}
-      {/* <LiveActivityToast onCityChange={setActiveCity} /> */}
     </section>
   );
 }

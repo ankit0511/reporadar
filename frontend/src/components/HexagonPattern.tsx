@@ -71,7 +71,7 @@ export function HexagonPattern({ corner }: HexagonPatternProps) {
 
   return (
     <div
-      className={`pointer-events-none absolute overflow-hidden z-0 w-105 h-105 lg:w-130 lg:h-130 ${
+      className={`pointer-events-none fixed overflow-hidden z-0 w-105 h-105 lg:w-130 lg:h-130 ${
         isTopLeft ? "top-0 left-0" : "bottom-0 right-0 rotate-180"
       }`}
     >

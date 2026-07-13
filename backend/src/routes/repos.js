@@ -6,8 +6,14 @@ const GITHUB_API_BASE = "https://api.github.com";
 
 // Helper function to build GitHub search query
 // Converts parameters into GitHub's search syntax
-function buildGitHubQuery(language, topic, stars) {
+function buildGitHubQuery(keyword, language, topic, stars) {
   let query = "";
+
+  // Free-text keyword (repo name/description/readme) — lets users search
+  // beyond their saved preferences instead of only ever seeing their feed.
+  if (keyword) {
+    query += `${keyword} `;
+  }
 
   if (language) {
     query += `language:${language} `;
@@ -30,11 +36,11 @@ function buildGitHubQuery(language, topic, stars) {
   return query.trim();
 }
 
-// GET /api/repos/search?language=python&topic=ml&stars=500&page=1&limit=10
+// GET /api/repos/search?q=chatbot&language=python&topic=ml&stars=500&page=1&limit=10
 router.get("/search", async (req, res) => {
   try {
     // Step 1: Extract query parameters
-    const { language, topic, stars, page = 1, limit = 10 } = req.query;
+    const { q: keyword, language, topic, stars, page = 1, limit = 10 } = req.query;
 
     // Step 2: Check if user is authenticated
     if (!req.user || !req.user.githubToken) {
@@ -44,8 +50,15 @@ router.get("/search", async (req, res) => {
       });
     }
 
+    if (!keyword && !language && !topic) {
+      return res.status(400).json({
+        error: "Missing search criteria",
+        message: "Provide at least a keyword, language, or topic to search"
+      });
+    }
+
     // Step 3: Build the GitHub search query
-    const searchQuery = buildGitHubQuery(language, topic, stars);
+    const searchQuery = buildGitHubQuery(keyword, language, topic, stars);
 
     // Step 4: Calculate pagination (GitHub API starts at page 1)
     const githubPage = Math.max(1, Math.min(parseInt(page) || 1, 100)); // Max 100 pages

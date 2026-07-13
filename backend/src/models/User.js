@@ -21,6 +21,18 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    location: {
+        type: String,
+        default: null
+    },
+    profileUrl: {
+        type: String,
+        default: null
+    },
+    coordinates: {
+        lat: { type: Number, default: null },
+        lng: { type: Number, default: null }
+    },
     preference: {
         language: {
             type: [String],

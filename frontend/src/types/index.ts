@@ -36,3 +36,18 @@ export interface PreferenceContextType {
   savePreferences: () => Promise<void>;
   loading: boolean;
 }
+
+// Repository, as returned by GET /api/repos/search
+export interface Repo {
+  id: number;
+  name: string;
+  owner: string;
+  description: string;
+  url: string;
+  stars: number;
+  forks: number;
+  language: string;
+  topics: string[];
+  updated_at: string;
+  created_at: string;
+}

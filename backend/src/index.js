@@ -66,53 +66,7 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Backend is running fine" });
 });
 
-
-
-
-connectDB();
-
-// Middleware order matters:
-// 1. JSON parsing (so req.body works)
-// 2. CORS (allow frontend requests from different origin)
-// 3. Session (sets req.session for passport to use)
-// 4. Passport (uses req.session to remember logged-in user)
-
-app.use(express.json());
-
-app.use(
-  cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
-    credentials: true, // Allow cookies/session to be sent with requests
-  })
-);
-
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "your-secret-key-change-in-production",
-    resave: false, // Don't save session if nothing changed
-    saveUninitialized: false, // Don't create empty sessions
-    cookie: {
-      httpOnly: true, // Can't be accessed by JavaScript, only HTTP requests
-      secure: process.env.NODE_ENV === "production", // Only HTTPS in production
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    },
-  })
-);
-
-// Passport middleware: initializes passport and attaches req.user
-app.use(passport.initialize());
-app.use(passport.session());
-
 const port = process.env.PORT || 8000;
-
-// Routes
-app.use("/api/auth", authRoute);
-app.use("/api/repos", repoRoute);
-app.use("/api/preference", preferenceRoute);
-
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "Backend is running fine" });
-});
 
 app.listen(port, () => {
   console.log("App is running on port", port);

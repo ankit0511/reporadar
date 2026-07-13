@@ -21,7 +21,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (response.ok) {
           const data = await response.json();
-          setUser(data);
+          setUser(data.user);
         } else {
           setUser(null);
         }

@@ -1,6 +1,7 @@
 import passport from "passport";
 import GitHubStrategy from "passport-github2";
 import User from "../models/User.js";
+import geocodeLocation from "../utils/geocode.js";
 
 /**
  * Passport GitHub OAuth Configuration
@@ -29,6 +30,17 @@ passport.use(
     // verify callback: runs after GitHub returns the user's profile
     async (accessToken, refreshToken, profile, done) => {
       try {
+        const location = profile._json?.location || null;
+        const profileUrl = profile.profileUrl || null;
+
+        // Geocoding is a network call — only pay for it when the location
+        // actually changed (new signup, or the user updated it on GitHub).
+        const existing = await User.findOne({ githubId: profile.id });
+        let coordinates = existing?.coordinates ?? null;
+        if (location !== (existing?.location ?? null)) {
+          coordinates = location ? await geocodeLocation(location) : null;
+        }
+
         // Find or create user in MongoDB
         // upsert: true means "create if doesn't exist"
         const user = await User.findOneAndUpdate(
@@ -40,6 +52,9 @@ passport.use(
               email: profile.emails?.[0]?.value || null,
               avatar: profile.photos?.[0]?.value || null,
               githubToken: accessToken, // Store the token so we can use it later for API calls
+              location,
+              profileUrl,
+              coordinates,
             },
           },
           { returnDocument: 'after', upsert: true }

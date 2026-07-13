@@ -1,9 +1,14 @@
 import { useEffect, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { GlobalUsersSection } from "@/components/GlobalUsersSection";
 import { FeatureGrid } from "@/components/FeatureGrid";
 import { ContactSection } from "@/components/ContactSection";
+import { OnboardingDialog } from "@/components/OnboardingDialog";
+import { useAuth } from "@/context/AuthContext";
+import { api } from "@/lib/api";
+import type { UserPreference } from "@/types";
 
 const PANEL_COUNT = 4;
 
@@ -11,6 +16,22 @@ export function Landing() {
   const trackRef = useRef<HTMLDivElement>(null);
   const indexRef = useRef(0);
   const isAnimatingRef = useRef(false);
+  const { user, loading: authLoading, setUser } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Once a user signs in successfully, ask onboarding questions right here
+  // on the home page before ever sending them to the dashboard. Also opens
+  // when linked to from the dashboard's "Edit Preferences" button.
+  const showOnboarding =
+    !authLoading && !!user && (!user.onboardingCompleted || searchParams.get("edit") === "preferences");
+
+  const handleOnboardingSubmit = async (preference: UserPreference) => {
+    if (!user) return;
+    await api.post(`/api/preference/${user.githubId}`, preference);
+    setUser({ ...user, onboardingCompleted: true, preference });
+    navigate("/dashboard");
+  };
 
   // The page scrolls horizontally instead of vertically: each wheel/trackpad
   // gesture advances exactly one full panel, rather than nudging scrollLeft
@@ -58,6 +79,8 @@ export function Landing() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-background">
       <Header />
+
+      {showOnboarding && <OnboardingDialog onSubmit={handleOnboardingSubmit} />}
 
       <div
         ref={trackRef}

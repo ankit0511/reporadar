@@ -29,9 +29,10 @@ router.get(
   "/github/callback",
   passport.authenticate("github", { failureRedirect: "/" }),
   (req, res) => {
-    // Authentication successful, session is set
-    // Redirect to frontend dashboard
-    res.redirect(`${process.env.CLIENT_URL || "http://localhost:5173"}/dashboard`);
+    // Authentication successful, session is set.
+    // Land back on the home page — it opens the onboarding dialog for
+    // first-time users before ever sending them to the dashboard.
+    res.redirect(`${process.env.CLIENT_URL || "http://localhost:5173"}/`);
   }
 );
 
@@ -51,6 +52,7 @@ router.get("/me", (req, res) => {
       email: req.user.email,
       avatar: req.user.avatar,
       onboardingCompleted: req.user.onboardingCompleted,
+      preference: req.user.preference,
     },
   });
 });

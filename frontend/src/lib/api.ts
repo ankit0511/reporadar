@@ -66,6 +66,13 @@ export const api = {
       params,
     }),
 
+  patch: (endpoint: string, body?: any, params?: Record<string, any>) =>
+    apiCall(endpoint, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+      params,
+    }),
+
   delete: (endpoint: string, params?: Record<string, any>) =>
     apiCall(endpoint, { method: "DELETE", params }),
 };

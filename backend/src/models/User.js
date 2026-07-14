@@ -54,6 +54,21 @@ const userSchema = new mongoose.Schema({
     onboardingCompleted: {
         type: Boolean,
         default: false
+    },
+    // Capped, newest-first log of past searches — no per-item status to
+    // track, so a plain sliced array is enough (unlike visits, which get
+    // their own collection).
+    recentSearches: {
+        type: [
+            {
+                q: { type: String, default: "" },
+                language: { type: String, default: "" },
+                topic: { type: String, default: "" },
+                experience: { type: String, default: "" },
+                searchedAt: { type: Date, default: Date.now }
+            }
+        ],
+        default: []
     }
 
 }, { timestamps: true })

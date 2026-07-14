@@ -19,6 +19,8 @@ const passport = (await import("./config/passport.js")).default;
 const repoRoute = (await import("./routes/repos.js")).default;
 const preferenceRoute = (await import("./routes/preference.js")).default;
 const authRoute = (await import("./routes/auth.js")).default;
+const activityRoute = (await import("./routes/activity.js")).default;
+const aiRoute = (await import("./routes/ai.js")).default;
 const connectDB = (await import("./config/db.js")).default;
 
 const app = express();
@@ -61,6 +63,8 @@ app.use(passport.session());
 app.use("/api/auth", authRoute);
 app.use("/api/repos", repoRoute);
 app.use("/api/preference", preferenceRoute);
+app.use("/api/activity", activityRoute);
+app.use("/api/ai", aiRoute);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Backend is running fine" });

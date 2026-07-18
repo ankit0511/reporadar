@@ -201,12 +201,16 @@ export function Dashboard() {
   const sendChatMessage = async (text: string) => {
     if (!text.trim() || chatLoading) return;
 
+    // Last few turns give the assistant enough context to hold a real
+    // conversation (follow-ups, "thanks", etc.) without persisting anything.
+    const history = chatMessages.slice(-6).map((m) => ({ role: m.role, text: m.text }));
+
     setChatMessages((prev) => [...prev, { id: Date.now(), role: "user", text, time: formatTime() }]);
     setChatInput("");
     setChatLoading(true);
     try {
-      const data = await api.post("/api/ai/query", { query: text });
-      if (data.type === "clarify") {
+      const data = await api.post("/api/ai/query", { query: text, history });
+      if (data.type === "chat" || data.type === "clarify") {
         setChatMessages((prev) => [...prev, {
           id: Date.now() + 1,
           role: "assistant",

@@ -45,11 +45,20 @@ export function buildGitHubQuery(keyword, language, topic, stars, experience) {
   return query.trim();
 }
 
+// GitHub's own sort values, plus "best-match" which means "omit sort
+// entirely" — that's what makes the API rank by text relevance.
+const SORT_PARAMS = {
+  stars: "stars",
+  updated: "updated",
+  forks: "forks"
+};
+
 // Shared by routes/repos.js (structured search) and routes/ai.js (natural
 // language query) so both stay in sync on the GitHub call + response shape.
-export async function searchGitHubRepos({ query, token, page = 1, limit = 10 }) {
+export async function searchGitHubRepos({ query, token, page = 1, limit = 10, sort = "stars" }) {
   const githubPage = Math.max(1, Math.min(parseInt(page) || 1, 100));
   const githubLimit = Math.min(parseInt(limit) || 10, 100);
+  const githubSort = SORT_PARAMS[sort];
 
   const result = await fetchAPI(`${GITHUB_API_BASE}/search/repositories`, {
     method: "GET",
@@ -59,8 +68,7 @@ export async function searchGitHubRepos({ query, token, page = 1, limit = 10 }) 
     },
     params: {
       q: query,
-      sort: "stars",
-      order: "desc",
+      ...(githubSort ? { sort: githubSort, order: "desc" } : {}),
       page: githubPage,
       per_page: githubLimit
     }
@@ -74,11 +82,13 @@ export async function searchGitHubRepos({ query, token, page = 1, limit = 10 }) 
     id: repo.id,
     name: repo.name,
     owner: repo.owner.login,
+    avatarUrl: repo.owner.avatar_url || null,
     description: repo.description || "No description",
     url: repo.html_url,
     stars: repo.stargazers_count,
     forks: repo.forks_count,
     language: repo.language || "Unknown",
+    license: repo.license?.name || null,
     topics: repo.topics || [],
     updated_at: repo.updated_at,
     created_at: repo.created_at

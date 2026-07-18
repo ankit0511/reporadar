@@ -42,11 +42,13 @@ export interface Repo {
   id: number;
   name: string;
   owner: string;
+  avatarUrl: string | null;
   description: string;
   url: string;
   stars: number;
   forks: number;
   language: string;
+  license: string | null;
   topics: string[];
   updated_at: string;
   created_at: string;

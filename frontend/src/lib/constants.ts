@@ -13,3 +13,9 @@ export const EXPERIENCE_LEVELS: { value: "beginner" | "intermediate" | "expert";
   { value: "intermediate", label: "Intermediate" },
   { value: "expert", label: "Expert" },
 ];
+
+export function describeSearch(search: { q: string; language: string; topic: string; experience: string }): string {
+  if (search.q) return `"${search.q}"`;
+  const parts = [search.language, search.topic, search.experience].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "All repositories";
+}

@@ -8,7 +8,7 @@ const router = express.Router();
 router.get("/search", async (req, res) => {
   try {
     // Step 1: Extract query parameters
-    const { q: keyword, language, topic, stars, experience, page = 1, limit = 10 } = req.query;
+    const { q: keyword, language, topic, stars, experience, page = 1, limit = 10, sort = "stars" } = req.query;
 
     // Step 2: Check if user is authenticated
     if (!req.user || !req.user.githubToken) {
@@ -33,7 +33,8 @@ router.get("/search", async (req, res) => {
       query: searchQuery,
       token: req.user.githubToken,
       page,
-      limit
+      limit,
+      sort
     });
 
     // Handle API errors

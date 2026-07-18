@@ -1,4 +1,3 @@
-import type { KeyboardEvent } from "react";
 import { Star, GitFork, ExternalLink, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Repo } from "@/types";
@@ -6,9 +5,7 @@ import type { Repo } from "@/types";
 interface RepoCardProps {
   repo: Repo;
   view?: "grid" | "list";
-  selected?: boolean;
   bookmarked?: boolean;
-  onSelect?: (repo: Repo) => void;
   onToggleBookmark?: (repo: Repo) => void;
   onOpen?: (repo: Repo) => void;
 }
@@ -30,25 +27,28 @@ function RepoAvatar({ repo, size = "w-9 h-9" }: { repo: Repo; size?: string }) {
   );
 }
 
-export function RepoCard({ repo, view = "grid", selected, bookmarked, onSelect, onToggleBookmark, onOpen }: RepoCardProps) {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      onSelect?.(repo);
-    }
-  };
+function BookmarkButton({ repo, bookmarked, onToggleBookmark }: Pick<RepoCardProps, "repo" | "bookmarked" | "onToggleBookmark">) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleBookmark?.(repo); }}
+      className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-primary transition-colors shrink-0"
+      aria-label="Bookmark"
+    >
+      <Bookmark className={cn("w-4 h-4", bookmarked && "fill-primary text-primary")} />
+    </button>
+  );
+}
 
+export function RepoCard({ repo, view = "grid", bookmarked, onToggleBookmark, onOpen }: RepoCardProps) {
   if (view === "list") {
     return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => onSelect?.(repo)}
-        onKeyDown={handleKeyDown}
-        className={cn(
-          "flex items-center gap-3 rounded-xl border bg-card shadow-sm p-3 cursor-pointer transition-colors",
-          selected ? "border-primary bg-secondary/40" : "border-border hover:border-primary/30"
-        )}
+      <a
+        href={repo.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => onOpen?.(repo)}
+        className="flex items-center gap-3 rounded-xl border border-border bg-card shadow-sm p-3 transition-colors hover:border-primary/30"
       >
         <RepoAvatar repo={repo} />
         <div className="min-w-0 flex-1">
@@ -59,38 +59,19 @@ export function RepoCard({ repo, view = "grid", selected, bookmarked, onSelect, 
           <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5" />{repo.stars.toLocaleString()}</span>
           <span className="flex items-center gap-1"><GitFork className="w-3.5 h-3.5" />{repo.forks.toLocaleString()}</span>
         </div>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onToggleBookmark?.(repo); }}
-          className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-primary transition-colors shrink-0"
-          aria-label="Bookmark"
-        >
-          <Bookmark className={cn("w-4 h-4", bookmarked && "fill-primary text-primary")} />
-        </button>
-        <a
-          href={repo.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => { e.stopPropagation(); onOpen?.(repo); }}
-          className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-primary transition-colors shrink-0"
-          aria-label="Open on GitHub"
-        >
-          <ExternalLink className="w-4 h-4" />
-        </a>
-      </div>
+        <BookmarkButton repo={repo} bookmarked={bookmarked} onToggleBookmark={onToggleBookmark} />
+        <ExternalLink className="w-4 h-4 text-muted-foreground shrink-0" />
+      </a>
     );
   }
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onSelect?.(repo)}
-      onKeyDown={handleKeyDown}
-      className={cn(
-        "group rounded-2xl border bg-card shadow-sm p-5 cursor-pointer transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10",
-        selected ? "border-primary shadow-lg shadow-primary/10" : "border-border hover:border-primary/30"
-      )}
+    <a
+      href={repo.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => onOpen?.(repo)}
+      className="group rounded-2xl border border-border bg-card shadow-sm p-5 transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 hover:border-primary/30"
     >
       <div className="flex items-start justify-between gap-2 mb-3">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -98,24 +79,8 @@ export function RepoCard({ repo, view = "grid", selected, bookmarked, onSelect, 
           <p className="font-semibold text-foreground truncate">{repo.name}</p>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onToggleBookmark?.(repo); }}
-            className="p-1 rounded-lg text-muted-foreground hover:bg-secondary hover:text-primary transition-colors"
-            aria-label="Bookmark"
-          >
-            <Bookmark className={cn("w-4 h-4", bookmarked && "fill-primary text-primary")} />
-          </button>
-          <a
-            href={repo.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => { e.stopPropagation(); onOpen?.(repo); }}
-            className="p-1 rounded-lg text-muted-foreground hover:bg-secondary hover:text-primary transition-colors"
-            aria-label="Open on GitHub"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </a>
+          <BookmarkButton repo={repo} bookmarked={bookmarked} onToggleBookmark={onToggleBookmark} />
+          <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
         </div>
       </div>
       <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
@@ -136,7 +101,7 @@ export function RepoCard({ repo, view = "grid", selected, bookmarked, onSelect, 
           </span>
         )}
       </div>
-    </div>
+    </a>
   );
 }
 

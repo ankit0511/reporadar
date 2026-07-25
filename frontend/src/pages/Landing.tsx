@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
@@ -19,18 +19,33 @@ export function Landing() {
   const { user, loading: authLoading, setUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false);
 
   // Once a user signs in successfully, ask onboarding questions right here
   // on the home page before ever sending them to the dashboard. Also opens
   // when linked to from the dashboard's "Edit Preferences" button.
   const showOnboarding =
-    !authLoading && !!user && (!user.onboardingCompleted || searchParams.get("edit") === "preferences");
+    !onboardingDismissed &&
+    !authLoading &&
+    !!user &&
+    (!user.onboardingCompleted || searchParams.get("edit") === "preferences");
 
   const handleOnboardingSubmit = async (preference: UserPreference) => {
     if (!user) return;
     await api.post(`/api/preference/${user.githubId}`, preference);
     setUser({ ...user, onboardingCompleted: true, preference });
     navigate("/dashboard");
+  };
+
+  const handleOnboardingClose = () => {
+    if (searchParams.get("edit") === "preferences") {
+      // Editing preferences always arrives here from the dashboard, so
+      // closing without saving should return there instead of stranding
+      // the user on the landing page.
+      navigate("/dashboard");
+    } else {
+      setOnboardingDismissed(true);
+    }
   };
 
   // The page scrolls horizontally instead of vertically: each wheel/trackpad
@@ -80,7 +95,9 @@ export function Landing() {
     <div className="h-screen w-screen overflow-hidden bg-background">
       <Header />
 
-      {showOnboarding && <OnboardingDialog onSubmit={handleOnboardingSubmit} />}
+      {showOnboarding && (
+        <OnboardingDialog onSubmit={handleOnboardingSubmit} onClose={handleOnboardingClose} />
+      )}
 
       <div
         ref={trackRef}

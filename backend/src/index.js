@@ -14,6 +14,7 @@ console.log("✓ GitHub Client ID:", process.env.GITHUB_CLIENT_ID ? "✓ Set" : 
 // NOW dynamically import everything that depends on env vars
 const express = (await import("express")).default;
 const session = (await import("express-session")).default;
+const MongoStore = (await import("connect-mongo")).default;
 const cors = (await import("cors")).default;
 const passport = (await import("./config/passport.js")).default;
 const repoRoute = (await import("./routes/repos.js")).default;
@@ -21,6 +22,7 @@ const preferenceRoute = (await import("./routes/preference.js")).default;
 const authRoute = (await import("./routes/auth.js")).default;
 const activityRoute = (await import("./routes/activity.js")).default;
 const aiRoute = (await import("./routes/ai.js")).default;
+const chatHistoryRoute = (await import("./routes/chatHistory.js")).default;
 const connectDB = (await import("./config/db.js")).default;
 
 const app = express();
@@ -47,6 +49,15 @@ app.use(
     secret: process.env.SESSION_SECRET || "your-secret-key-change-in-production",
     resave: false, // Don't save session if nothing changed
     saveUninitialized: false, // Don't create empty sessions
+    // Persist sessions in Mongo instead of the default in-memory store, so
+    // logins survive server restarts (e.g. nodemon reloading in dev) instead
+    // of forcing everyone to log in again on every restart.
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGO_CONNECTION_STRING,
+      dbName: "reporadar",
+      collectionName: "sessions",
+      ttl: 7 * 24 * 60 * 60, // 7 days, in seconds
+    }),
     cookie: {
       httpOnly: true, // Can't be accessed by JavaScript, only HTTP requests
       secure: process.env.NODE_ENV === "production", // Only HTTPS in production
@@ -65,6 +76,7 @@ app.use("/api/repos", repoRoute);
 app.use("/api/preference", preferenceRoute);
 app.use("/api/activity", activityRoute);
 app.use("/api/ai", aiRoute);
+app.use("/api/chat", chatHistoryRoute);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Backend is running fine" });

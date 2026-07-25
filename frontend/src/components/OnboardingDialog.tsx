@@ -82,8 +82,10 @@ function OptionCard({
 
 export function OnboardingDialog({
   onSubmit,
+  onClose,
 }: {
   onSubmit: (preference: UserPreference) => Promise<void>;
+  onClose: () => void;
 }) {
   const [step, setStep] = useState(0);
   const [language, setLanguage] = useState<string[]>([]);
@@ -135,9 +137,8 @@ export function OnboardingDialog({
   };
 
   return (
-    <Dialog open>
+    <Dialog open onOpenChange={(next) => !next && onClose()}>
       <DialogContent
-        onEscapeKeyDown={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
         className="min-h-[420px] flex flex-col"
       >

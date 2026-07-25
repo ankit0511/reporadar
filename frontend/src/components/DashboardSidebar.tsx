@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Clock, MessageCircle, Star, Search } from "lucide-react";
+import { Clock, MessageCircle, Star, Search, X } from "lucide-react";
 import { describeSearch } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import type { RecentSearch } from "@/types";
@@ -82,6 +82,27 @@ function SidebarIconButton({
 export function DashboardSidebar({ recentSearches, onSelectSearch, onOpenChat, onOpenSaved, savedActive }: DashboardSidebarProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [filter, setFilter] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!historyOpen) return;
+
+    const onPointerDown = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setHistoryOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setHistoryOpen(false);
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [historyOpen]);
 
   const filtered = useMemo(() => {
     if (!filter.trim()) return recentSearches;
@@ -102,7 +123,22 @@ export function DashboardSidebar({ recentSearches, onSelectSearch, onOpenChat, o
         <SidebarIconButton icon={Clock} active={historyOpen} onClick={() => setHistoryOpen((o) => !o)} label="History" />
 
         {historyOpen && (
-          <div className="absolute left-full top-0 ml-3 w-72 max-h-[70vh] overflow-y-auto no-scrollbar rounded-2xl border border-border bg-card shadow-xl p-4 z-20">
+          <div
+            ref={panelRef}
+            className="absolute left-full top-0 ml-3 w-72 max-h-[70vh] overflow-y-auto no-scrollbar rounded-2xl border border-border bg-card shadow-xl p-4 z-20"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-foreground">History</p>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(false)}
+                aria-label="Close"
+                className="rounded-full p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 hover:bg-secondary focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <input

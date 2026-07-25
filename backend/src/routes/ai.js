@@ -12,6 +12,32 @@ if (!genAI) {
   console.warn("⚠️ GEMINI_API_KEY not set — /api/ai/query will fall back to plain keyword search");
 }
 
+// Gemini's free tier enforces a low requests-per-minute quota. Once we hit a
+// 429, retrying on the very next message just trips it again and floods the
+// logs — so back off for a bit and go straight to keyword search until the
+// cooldown clears.
+const RATE_LIMIT_COOLDOWN_MS = 60_000;
+let geminiCooldownUntil = 0;
+
+// When Gemini is unreachable (down, rate-limited, bad JSON), `interpretQuery`
+// returns null and the code falls back to a plain GitHub keyword search —
+// which turns a stray "hii" or "thanks" into a literal search for repos
+// named "hii". Catch the obvious greetings/small talk locally first so those
+// still get a friendly reply instead of nonsense search results.
+const THANKS_PATTERN = /^(thanks?|thank\s?you|ty|thx|cheers)[!.,\s]*$/i;
+const GREETING_PATTERN = /^(h+e?y+a?|h+i+|h+e+l+l+o+|yo+|sup|good\s?(morning|afternoon|evening)|ok(ay)?|cool|nice|great|awesome)[!.,\s]*$/i;
+
+function localSmallTalkReply(query) {
+  const normalized = query.trim();
+  if (THANKS_PATTERN.test(normalized)) {
+    return "You're welcome! Let me know if you'd like more repo recommendations.";
+  }
+  if (GREETING_PATTERN.test(normalized)) {
+    return "Hey! Tell me a language, topic, or the kind of project you'd like to contribute to, and I'll find some repos for you.";
+  }
+  return null;
+}
+
 function extractJson(text) {
   try {
     return JSON.parse(text.replace(/```json|```/g, "").trim());
@@ -28,6 +54,7 @@ function extractJson(text) {
 // a question about something already shown) and just wants a direct reply.
 async function interpretQuery(query, preference, history) {
   if (!genAI) return null;
+  if (Date.now() < geminiCooldownUntil) return null;
 
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -75,7 +102,12 @@ If action is "chat", use this shape:
     const result = await model.generateContent(prompt);
     return extractJson(result.response.text());
   } catch (error) {
-    console.error("Gemini request failed:", error.message);
+    if (error.status === 429) {
+      geminiCooldownUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+      console.warn(`Gemini rate limit (429) hit — falling back to keyword search for ${RATE_LIMIT_COOLDOWN_MS / 1000}s`);
+    } else {
+      console.error("Gemini request failed:", error.message);
+    }
     return null;
   }
 }
@@ -115,6 +147,15 @@ router.post("/query", async (req, res) => {
     // guessing, no GitHub call this turn.
     if (parsed?.action === "clarify") {
       return res.json({ type: "clarify", message: parsed.message || "Could you tell me a bit more about what you're looking for?" });
+    }
+
+    // Gemini didn't classify this turn at all (down, rate-limited, bad JSON)
+    // — catch obvious small talk locally before defaulting to a search.
+    if (!parsed) {
+      const smallTalk = localSmallTalkReply(trimmedQuery);
+      if (smallTalk) {
+        return res.json({ type: "chat", message: smallTalk });
+      }
     }
 
     // "search" action, or Gemini unavailable/errored/returned bad JSON —

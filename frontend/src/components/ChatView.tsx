@@ -1,6 +1,6 @@
 import type { FormEvent, RefObject } from "react";
 import { useEffect, useRef } from "react";
-import { Sparkles, Send, RotateCcw } from "lucide-react";
+import { Sparkles, Send, RotateCcw, ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { RepoCard } from "@/components/RepoCard";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ interface ChatViewProps {
   onInputChange: (value: string) => void;
   onSubmit: (e: FormEvent) => void;
   onNewChat: () => void;
+  onBack: () => void;
   isBookmarked: (repoId: number) => boolean;
   onToggleBookmark: (repo: Repo) => void;
   onOpen: (repo: Repo) => void;
@@ -37,7 +38,7 @@ const SUGGESTIONS = [
 
 export function ChatView({
   messages, input, loading, inputRef, userAvatar, userName,
-  onInputChange, onSubmit, onNewChat, isBookmarked, onToggleBookmark, onOpen,
+  onInputChange, onSubmit, onNewChat, onBack, isBookmarked, onToggleBookmark, onOpen,
 }: ChatViewProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -49,10 +50,21 @@ export function ChatView({
     <div className="flex flex-col h-full max-w-3xl mx-auto w-full px-6">
       {/* Header */}
       <div className="flex items-center justify-between py-4 border-b border-border shrink-0">
-        <h1 className="flex items-center gap-2 font-heading text-lg font-bold text-foreground">
-          <Sparkles className="w-4 h-4 text-primary" />
-          Chat with RepoRadar AI
-        </h1>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="Back to dashboard"
+            title="Back to dashboard"
+            className="flex items-center justify-center w-8 h-8 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+          <h1 className="flex items-center gap-2 font-heading text-lg font-bold text-foreground">
+            <Sparkles className="w-4 h-4 text-primary" />
+            Chat with RepoRadar AI
+          </h1>
+        </div>
         <button
           type="button"
           onClick={onNewChat}

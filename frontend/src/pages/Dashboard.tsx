@@ -112,6 +112,13 @@ export function Dashboard() {
     api.get("/api/activity/recent-visits").then((data) => setVisits(data.visits ?? [])).catch(() => {});
   }, [user?.onboardingCompleted]);
 
+  // Restore the AI chat conversation so it survives a page refresh instead
+  // of resetting to empty every time the dashboard mounts.
+  useEffect(() => {
+    if (!user?.onboardingCompleted) return;
+    api.get("/api/chat").then((data) => setChatMessages(data.messages ?? [])).catch(() => {});
+  }, [user?.onboardingCompleted]);
+
   // Fire-and-forget: logging a click must never block or break the
   // GitHub redirect (the anchor's default navigation is left untouched).
   const logVisit = (repo: Repo) => {
@@ -198,33 +205,45 @@ export function Dashboard() {
     }
   };
 
+  // Fire-and-forget, matching logVisit below — persisting the conversation
+  // must never block or break the chat UI.
+  const persistChatMessage = (role: "user" | "assistant", text: string, repositories?: Repo[]) => {
+    api.post("/api/chat", { role, text, repositories }).catch(() => {});
+  };
+
   const sendChatMessage = async (text: string) => {
     if (!text.trim() || chatLoading) return;
 
     // Last few turns give the assistant enough context to hold a real
-    // conversation (follow-ups, "thanks", etc.) without persisting anything.
+    // conversation (follow-ups, "thanks", etc.).
     const history = chatMessages.slice(-6).map((m) => ({ role: m.role, text: m.text }));
 
     setChatMessages((prev) => [...prev, { id: Date.now(), role: "user", text, time: formatTime() }]);
+    persistChatMessage("user", text);
     setChatInput("");
     setChatLoading(true);
     try {
       const data = await api.post("/api/ai/query", { query: text, history });
       if (data.type === "chat" || data.type === "clarify") {
+        const reply = data.message ?? "Could you tell me a bit more?";
         setChatMessages((prev) => [...prev, {
           id: Date.now() + 1,
           role: "assistant",
-          text: data.message ?? "Could you tell me a bit more?",
+          text: reply,
           time: formatTime(),
         }]);
+        persistChatMessage("assistant", reply);
       } else {
+        const reply = data.explanation ?? "Here's what I found.";
+        const repositories = data.repositories ?? [];
         setChatMessages((prev) => [...prev, {
           id: Date.now() + 1,
           role: "assistant",
-          text: data.explanation ?? "Here's what I found.",
-          repositories: data.repositories ?? [],
+          text: reply,
+          repositories,
           time: formatTime(),
         }]);
+        persistChatMessage("assistant", reply, repositories);
       }
     } catch {
       setChatMessages((prev) => [...prev, {
@@ -246,6 +265,7 @@ export function Dashboard() {
   const clearChat = () => {
     setChatMessages([]);
     setChatInput("");
+    api.delete("/api/chat").catch(() => {});
   };
 
   const applyRecentSearch = (search: RecentSearch) => {
@@ -387,6 +407,7 @@ export function Dashboard() {
               onInputChange={setChatInput}
               onSubmit={(e) => { e.preventDefault(); sendChatMessage(chatInput); }}
               onNewChat={clearChat}
+              onBack={() => setMainView("search")}
               isBookmarked={isBookmarked}
               onToggleBookmark={toggleBookmark}
               onOpen={logVisit}

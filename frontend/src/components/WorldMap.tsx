@@ -1,37 +1,26 @@
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps";
 
-interface City {
+// A person to plot on the map — real users come from /api/users/locations,
+// demo users are padded in by GlobalUsersSection while the community is small.
+export interface MapUser {
+  id: string;
   name: string;
+  avatar: string | null;
+  location: string;
   lat: number;
   lng: number;
 }
 
-// Placeholder markers — swap for a real "active users" feed once the backend ships.
-export const ACTIVITY_CITIES: City[] = [
-  { name: "Bangalore", lat: 12.9716, lng: 77.5946 },
-  { name: "San Francisco", lat: 37.7749, lng: -122.4194 },
-  { name: "London", lat: 51.5072, lng: -0.1276 },
-  { name: "Berlin", lat: 52.52, lng: 13.405 },
-  { name: "Singapore", lat: 1.3521, lng: 103.8198 },
-  { name: "São Paulo", lat: -23.5505, lng: -46.6333 },
-  { name: "Tokyo", lat: 35.6762, lng: 139.6503 },
-  { name: "Toronto", lat: 43.6532, lng: -79.3832 },
-  { name: "Lagos", lat: 6.5244, lng: 3.3792 },
-];
-
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
-export interface ActiveUser {
-  cityName: string;
-  avatar: string;
-  label: string;
-}
-
 interface WorldMapProps {
-  activeUsers?: ActiveUser[];
+  users: MapUser[];
+  // Which users are currently "lit up" with avatar + ping; the rest render
+  // as small dots. The parent cycles this set to keep the map feeling live.
+  activeIds?: string[];
 }
 
-export function WorldMap({ activeUsers = [] }: WorldMapProps) {
+export function WorldMap({ users, activeIds = [] }: WorldMapProps) {
   return (
     <ComposableMap
       projection="geoEqualEarth"
@@ -58,12 +47,12 @@ export function WorldMap({ activeUsers = [] }: WorldMapProps) {
         }
       </Geographies>
 
-      {ACTIVITY_CITIES.map((city, i) => {
-        const active = activeUsers.find((u) => u.cityName === city.name);
+      {users.map((user, i) => {
+        const active = activeIds.includes(user.id);
         const pingDelay = `${(i % 5) * 0.4}s`;
 
         return (
-          <Marker key={city.name} coordinates={[city.lng, city.lat]}>
+          <Marker key={user.id} coordinates={[user.lng, user.lat]}>
             {active ? (
               <>
                 <circle r={18} fill="hsl(var(--primary))" opacity={0.3}>
@@ -83,20 +72,37 @@ export function WorldMap({ activeUsers = [] }: WorldMapProps) {
                   />
                 </circle>
 
-                <defs>
-                  <clipPath id={`clip-${city.name}`}>
-                    <circle cx={0} cy={0} r={16} />
-                  </clipPath>
-                </defs>
-                <image
-                  href={active.avatar}
-                  x={-16}
-                  y={-16}
-                  width={32}
-                  height={32}
-                  clipPath={`url(#clip-${city.name})`}
-                  preserveAspectRatio="xMidYMid slice"
-                />
+                {user.avatar ? (
+                  <>
+                    <defs>
+                      <clipPath id={`clip-${user.id}`}>
+                        <circle cx={0} cy={0} r={16} />
+                      </clipPath>
+                    </defs>
+                    <image
+                      href={user.avatar}
+                      x={-16}
+                      y={-16}
+                      width={32}
+                      height={32}
+                      clipPath={`url(#clip-${user.id})`}
+                      preserveAspectRatio="xMidYMid slice"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <circle r={16} fill="hsl(var(--primary))" />
+                    <text
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fontSize={14}
+                      fontWeight={700}
+                      fill="hsl(var(--primary-foreground))"
+                    >
+                      {user.name.charAt(0).toUpperCase()}
+                    </text>
+                  </>
+                )}
                 <circle r={16} fill="none" stroke="hsl(var(--card))" strokeWidth={2.5} />
 
                 <text
@@ -109,7 +115,7 @@ export function WorldMap({ activeUsers = [] }: WorldMapProps) {
                   strokeWidth={4}
                   paintOrder="stroke"
                 >
-                  {active.label}
+                  {user.location ? `${user.name} · ${user.location}` : user.name}
                 </text>
               </>
             ) : (

@@ -5,6 +5,9 @@ export interface User {
   userName: string;
   email: string | null;
   avatar: string | null;
+  location: string | null;
+  coordinates: { lat: number | null; lng: number | null } | null;
+  profileUrl: string | null;
   githubToken: string;
   onboardingCompleted: boolean;
   preference: UserPreference;

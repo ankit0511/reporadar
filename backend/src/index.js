@@ -23,6 +23,7 @@ const authRoute = (await import("./routes/auth.js")).default;
 const activityRoute = (await import("./routes/activity.js")).default;
 const aiRoute = (await import("./routes/ai.js")).default;
 const chatHistoryRoute = (await import("./routes/chatHistory.js")).default;
+const usersRoute = (await import("./routes/users.js")).default;
 const connectDB = (await import("./config/db.js")).default;
 
 const app = express();
@@ -77,6 +78,7 @@ app.use("/api/preference", preferenceRoute);
 app.use("/api/activity", activityRoute);
 app.use("/api/ai", aiRoute);
 app.use("/api/chat", chatHistoryRoute);
+app.use("/api/users", usersRoute);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Backend is running fine" });

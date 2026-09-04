@@ -9,10 +9,10 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
 
-    /* Path Alias */
-    "baseUrl": ".",
+    /* Path Alias — paths resolve relative to this file, baseUrl is
+       deprecated in TS 6 and no longer needed */
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
 
     /* Bundler mode */

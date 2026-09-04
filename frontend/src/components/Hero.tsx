@@ -22,7 +22,9 @@ const FLOATING_CHIPS: FloatingChip[] = [
   { icon: Settings, className: "bottom-16 right-16 lg:right-32" },
 ];
 
-function FloatingChips() {
+// Currently unrendered — exported so the build stays green until it's
+// either re-added to the Hero layout or deleted for good.
+export function FloatingChips() {
   return (
     <div className="pointer-events-none absolute inset-0 z-0 hidden sm:block">
       {FLOATING_CHIPS.map(({ icon: Icon, className }, i) => (

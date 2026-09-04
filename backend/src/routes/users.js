@@ -32,4 +32,24 @@ router.get("/locations", async (req, res) => {
   }
 });
 
+// GET /api/users/stats — real social proof for the landing hero: the actual
+// registered-user count plus a few real avatars. Public, minimal fields.
+router.get("/stats", async (req, res) => {
+  try {
+    const [totalUsers, recent] = await Promise.all([
+      User.countDocuments(),
+      User.find({ avatar: { $nin: [null, ""] } }, { avatar: 1 })
+        .sort({ createdAt: -1 })
+        .limit(4),
+    ]);
+
+    res.status(200).json({
+      totalUsers,
+      avatars: recent.map((u) => u.avatar),
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to load user stats", message: error.message });
+  }
+});
+
 export default router;

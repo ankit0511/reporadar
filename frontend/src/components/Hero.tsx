@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Sparkles, Search, ArrowRight, Play, Code2, Terminal, Braces, Cpu, Settings } from "lucide-react";
 import { ChatWidget } from "@/components/ChatWidget";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { api } from "@/lib/api";
 
 const API_BASE = "http://localhost:5000";
 
@@ -39,16 +41,25 @@ export function FloatingChips() {
   );
 }
 
-const SOCIAL_AVATARS = [
-  "https://randomuser.me/api/portraits/men/32.jpg",
-  "https://randomuser.me/api/portraits/women/68.jpg",
-  "https://randomuser.me/api/portraits/men/45.jpg",
-  "https://randomuser.me/api/portraits/women/21.jpg",
-];
+// Real social proof from the backend — actual registered-user count and
+// real GitHub avatars, no placeholder numbers.
+interface UserStats {
+  totalUsers: number;
+  avatars: string[];
+}
 
 export function Hero() {
   const { isLoggedIn } = useAuth();
   const navigate = useNavigate();
+
+  const [stats, setStats] = useState<UserStats | null>(null);
+
+  useEffect(() => {
+    api
+      .get("/api/users/stats")
+      .then((data) => setStats(data))
+      .catch(() => {}); // backend down → the social-proof row just stays hidden
+  }, []);
 
   const scrollToNext = () => {
     const track = document.getElementById("landing-track");
@@ -108,23 +119,29 @@ export function Hero() {
               </Button>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex -space-x-3">
-                {SOCIAL_AVATARS.map((src) => (
-                  <img
-                    key={src}
-                    src={src}
-                    alt=""
-                    className="w-9 h-9 rounded-full border-2 border-background object-cover"
-                  />
-                ))}
+            {stats && stats.totalUsers > 0 && (
+              <div className="flex items-center gap-3">
+                {stats.avatars.length > 0 && (
+                  <div className="flex -space-x-3">
+                    {stats.avatars.map((src) => (
+                      <img
+                        key={src}
+                        src={src}
+                        alt=""
+                        className="w-9 h-9 rounded-full border-2 border-background object-cover"
+                      />
+                    ))}
+                  </div>
+                )}
+                <p className="text-sm text-left">
+                  <span className="font-semibold text-primary">
+                    Loved by {stats.totalUsers.toLocaleString()} developer{stats.totalUsers === 1 ? "" : "s"}
+                  </span>
+                  <br />
+                  <span className="text-muted-foreground">from around the world</span>
+                </p>
               </div>
-              <p className="text-sm text-left">
-                <span className="font-semibold text-primary">Loved by 5,000+ developers</span>
-                <br />
-                <span className="text-muted-foreground">from around the world</span>
-              </p>
-            </div>
+            )}
           </div>
         </div>
       </div>

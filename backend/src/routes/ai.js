@@ -170,6 +170,8 @@ If action is "chat", use this shape:
 // POST /api/ai/query
 router.post("/query", async (req, res) => {
   try {
+    // Search is a logged-in feature: the landing widget plays a canned demo
+    // for guests and prompts them to sign in before any real query.
     if (!req.user || !req.user.githubToken) {
       return res.status(401).json({
         error: "Unauthorized",
@@ -182,6 +184,12 @@ router.post("/query", async (req, res) => {
       return res.status(400).json({
         error: "Missing query",
         message: "Tell the AI what kind of project you're looking for"
+      });
+    }
+    if (query.length > 500) {
+      return res.status(400).json({
+        error: "Query too long",
+        message: "Please keep your message under 500 characters"
       });
     }
 
@@ -258,7 +266,8 @@ router.post("/query", async (req, res) => {
     res.json({
       type: "result",
       explanation: parsed?.explanation || "Here are some repositories that match your request.",
-      repositories: result.repositories
+      repositories: result.repositories,
+      total: result.total
     });
   } catch (error) {
     console.error("AI query error:", error);

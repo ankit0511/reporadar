@@ -63,7 +63,9 @@ export async function searchGitHubRepos({ query, token, page = 1, limit = 10, so
   const result = await fetchAPI(`${GITHUB_API_BASE}/search/repositories`, {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${token}`,
+      // Guests (landing-page widget) search unauthenticated — GitHub allows
+      // it at a lower rate limit. Logged-in users get their own quota.
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       Accept: "application/vnd.github.v3+json"
     },
     params: {

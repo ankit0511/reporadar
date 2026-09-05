@@ -1,28 +1,40 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Radar as RadarIcon, MousePointer2, Search, Check, Star, Package } from "lucide-react";
+import { Send, Radar as RadarIcon, MousePointer2, Search, Check, Star, Package, User as UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const API_BASE = "http://localhost:5000";
-const GUEST_AVATAR = "https://randomuser.me/api/portraits/men/32.jpg";
+
+interface WidgetRepo {
+  id: number;
+  name: string;
+  owner: string;
+  description: string;
+  stars: number;
+  url: string;
+}
 
 interface ChatMessage {
   id: number;
   role: "assistant" | "user";
   content: string;
   time: string;
-}
-
-interface SearchResults {
-  query: string;
-  phase: "searching" | "done";
+  // Present when this assistant turn returned search results.
+  repos?: WidgetRepo[];
+  total?: number;
+  resultQuery?: string;
+  // Renders a "Sign in with GitHub" button under the bubble.
+  signInPrompt?: boolean;
 }
 
 const formatTime = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+const formatStars = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 
 const INITIAL_MESSAGE: ChatMessage = {
   id: 0,
@@ -32,15 +44,22 @@ const INITIAL_MESSAGE: ChatMessage = {
   time: formatTime(),
 };
 
-const CANNED_REPOS = [
-  { name: "TanStack / query", description: "Powerful data synchronization for React", stars: "27.6k" },
-  { name: "shadcn-ui / ui", description: "Beautifully designed components", stars: "24.1k" },
-  { name: "facebook / react", description: "The library for web and native user interfaces", stars: "216k" },
-];
-
 const TOPIC_CHIPS = ["⚛️ React", "🟢 Node.js", "🟣 Machine Learning", "⭐ Good First Issues", "🎃 Hacktoberfest"];
 
 const DEMO_QUERY = "I'm looking for React projects with good first issues.";
+
+// The auto-playing intro is a scripted showcase — canned repos, no API call.
+// Real queries (logged-in users only) go through /api/ai/query instead.
+const DEMO_RESPONSE = "Nice — React with good first issues is a great place to start. Here are a few picks:";
+
+const DEMO_REPOS: WidgetRepo[] = [
+  { id: -1, name: "query", owner: "TanStack", description: "Powerful data synchronization for React", stars: 27600, url: "https://github.com/TanStack/query" },
+  { id: -2, name: "ui", owner: "shadcn-ui", description: "Beautifully designed components", stars: 24100, url: "https://github.com/shadcn-ui/ui" },
+  { id: -3, name: "react", owner: "facebook", description: "The library for web and native user interfaces", stars: 216000, url: "https://github.com/facebook/react" },
+];
+
+const SIGN_IN_MESSAGE =
+  "To search real repositories, please sign in with GitHub first — it takes a few seconds, and I'll tailor results to you.";
 
 const wait = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 
@@ -80,8 +99,8 @@ function TypedText({ text, speed = 50 }: { text: string; speed?: number }) {
 
 export function ChatWidget() {
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
-  const [results, setResults] = useState<SearchResults | null>(null);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
   const [cursor, setCursor] = useState({ x: 0, y: 0, visible: false, pressed: false });
   const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
@@ -91,27 +110,74 @@ export function ChatWidget() {
   const inputRef = useRef<HTMLInputElement>(null);
   const sendBtnRef = useRef<HTMLButtonElement>(null);
   const interruptedRef = useRef(false);
+  const loadingRef = useRef(false);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, results]);
+  }, [messages, loading]);
 
   const handleSignIn = () => {
     window.location.href = `${API_BASE}/api/auth/github`;
   };
 
-  const sendQuery = (query: string) => {
-    if (!query.trim()) return;
+  // Real queries use the same live pipeline as the dashboard chat:
+  // /api/ai/query decides whether to chat, ask a follow-up, or run a real
+  // GitHub search. Guests are stopped before the API and asked to sign in.
+  const sendQuery = async (query: string) => {
+    if (!query.trim() || loadingRef.current) return;
     interruptedRef.current = true;
     setCursor((c) => ({ ...c, visible: false }));
 
-    setMessages((prev) => [...prev, { id: Date.now(), role: "user", content: query, time: formatTime() }]);
-    setInput("");
-    setResults({ query, phase: "searching" });
+    const history = messages.slice(-6).map((m) => ({ role: m.role, text: m.content }));
 
-    window.setTimeout(() => {
-      setResults({ query, phase: "done" });
-    }, 1100);
+    setMessages((prev) => [...prev, { id: Date.now(), role: "user", content: query.trim(), time: formatTime() }]);
+    setInput("");
+
+    if (!isLoggedIn) {
+      setMessages((prev) => [...prev, {
+        id: Date.now() + 1,
+        role: "assistant",
+        content: SIGN_IN_MESSAGE,
+        time: formatTime(),
+        signInPrompt: true,
+      }]);
+      return;
+    }
+    loadingRef.current = true;
+    setLoading(true);
+
+    try {
+      const data = await api.post("/api/ai/query", { query: query.trim(), history });
+
+      if (data.type === "chat" || data.type === "clarify") {
+        setMessages((prev) => [...prev, {
+          id: Date.now() + 1,
+          role: "assistant",
+          content: data.message ?? "Could you tell me a bit more?",
+          time: formatTime(),
+        }]);
+      } else {
+        setMessages((prev) => [...prev, {
+          id: Date.now() + 1,
+          role: "assistant",
+          content: data.explanation ?? "Here's what I found.",
+          time: formatTime(),
+          repos: (data.repositories ?? []).slice(0, 3),
+          total: data.total,
+          resultQuery: query.trim(),
+        }]);
+      }
+    } catch {
+      setMessages((prev) => [...prev, {
+        id: Date.now() + 1,
+        role: "assistant",
+        content: "Something went wrong processing that — please try again.",
+        time: formatTime(),
+      }]);
+    } finally {
+      loadingRef.current = false;
+      setLoading(false);
+    }
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -119,9 +185,28 @@ export function ChatWidget() {
     sendQuery(input);
   };
 
+  // Scripted response for the intro demo — canned repos, staged "searching"
+  // pause, zero API calls. Purely a showcase of what the assistant does.
+  const playDemoResponse = async () => {
+    setMessages((prev) => [...prev, { id: Date.now(), role: "user", content: DEMO_QUERY, time: formatTime() }]);
+    setInput("");
+    setLoading(true);
+    await wait(1100);
+    setLoading(false);
+    setMessages((prev) => [...prev, {
+      id: Date.now() + 1,
+      role: "assistant",
+      content: DEMO_RESPONSE,
+      time: formatTime(),
+      repos: DEMO_REPOS,
+      total: 247,
+      resultQuery: DEMO_QUERY,
+    }]);
+  };
+
   // Idle demo: an animated cursor walks up to the input, "types" a sample
-  // query, then clicks send — showing how the widget works before the
-  // visitor has touched it themselves. Any real keystroke cancels it.
+  // query, clicks send, and a canned response plays — showing how the widget
+  // works before the visitor has touched it. Any real keystroke cancels it.
   useEffect(() => {
     // StrictMode runs this effect twice in dev (mount → cleanup → mount);
     // reset the flag each time so the second, real mount isn't immediately
@@ -161,8 +246,9 @@ export function ChatWidget() {
       setCursor((c) => ({ ...c, pressed: true }));
       await wait(180);
       if (interruptedRef.current) return;
+      setCursor((c) => ({ ...c, visible: false }));
 
-      sendQuery(DEMO_QUERY);
+      playDemoResponse();
     };
 
     runDemo();
@@ -219,12 +305,16 @@ export function ChatWidget() {
                 <span className="flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-primary-light to-primary text-primary-foreground shrink-0">
                   <RadarIcon className="w-3.5 h-3.5" />
                 </span>
-              ) : (
+              ) : user?.avatar ? (
                 <img
-                  src={user?.avatar || GUEST_AVATAR}
+                  src={user.avatar}
                   alt=""
                   className="w-7 h-7 rounded-full object-cover shrink-0 border border-border"
                 />
+              ) : (
+                <span className="flex items-center justify-center w-7 h-7 rounded-full bg-secondary text-muted-foreground shrink-0 border border-border">
+                  <UserIcon className="w-3.5 h-3.5" />
+                </span>
               )}
               <p
                 className={cn(
@@ -234,7 +324,7 @@ export function ChatWidget() {
                     : "bg-primary/10 text-foreground rounded-br-sm"
                 )}
               >
-                {message.role === "assistant" && i === messages.length - 1 && !results ? (
+                {message.role === "assistant" && i === messages.length - 1 && !loading && !message.repos ? (
                   <TypedText text={message.content} />
                 ) : (
                   message.content
@@ -250,57 +340,51 @@ export function ChatWidget() {
               {message.time}
               {message.role === "user" && <Check className="w-3 h-3 text-primary" />}
             </span>
-          </div>
-        ))}
 
-        {results && (
-          <div className="pl-9 space-y-2.5">
-            <div className="flex items-center gap-2 rounded-xl bg-secondary px-3.5 py-2.5">
-              <Search className={cn("w-3.5 h-3.5 text-primary", results.phase === "searching" && "animate-pulse")} />
-              <p className="text-xs text-muted-foreground">
-                {results.phase === "searching" ? (
-                  "Searching for the best matches..."
-                ) : (
-                  <>
-                    Found <span className="font-semibold text-foreground">247</span> repositories 🚀
-                  </>
+            {/* Guest tried to search — offer the login instead */}
+            {message.signInPrompt && (
+              <div className="w-full pl-9 mt-1">
+                <Button type="button" variant="dark" size="sm" onClick={handleSignIn}>
+                  Sign in with GitHub
+                </Button>
+              </div>
+            )}
+
+            {/* Search results attached to this assistant turn */}
+            {message.repos && (
+              <div className="w-full pl-9 space-y-2.5 mt-1">
+                {typeof message.total === "number" && (
+                  <div className="flex items-center gap-2 rounded-xl bg-secondary px-3.5 py-2.5">
+                    <Search className="w-3.5 h-3.5 text-primary" />
+                    <p className="text-xs text-muted-foreground">
+                      Found <span className="font-semibold text-foreground">{message.total.toLocaleString()}</span> repositories 🚀
+                    </p>
+                  </div>
                 )}
-              </p>
-            </div>
 
-            {results.phase === "done" && (
-              <>
                 <div className="space-y-2">
-                  {CANNED_REPOS.map((repo) => (
-                    <div
-                      key={repo.name}
-                      className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm"
+                  {message.repos.map((repo) => (
+                    <a
+                      key={repo.id}
+                      href={repo.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2.5 shadow-sm transition-colors hover:border-primary/40"
                     >
                       <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-secondary shrink-0">
                         <Package className="w-4 h-4 text-primary" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate">{repo.name}</p>
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {repo.owner} / {repo.name}
+                        </p>
                         <p className="text-xs text-muted-foreground truncate">{repo.description}</p>
                       </div>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                         <Star className="w-3 h-3 text-primary" fill="hsl(var(--primary))" />
-                        {repo.stars}
+                        {formatStars(repo.stars)}
                       </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 pt-0.5">
-                  {TOPIC_CHIPS.map((topic) => (
-                    <button
-                      key={topic}
-                      type="button"
-                      onClick={() => sendQuery(topic.replace(/^\S+\s/, ""))}
-                      className="rounded-full border border-border bg-secondary/60 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                    >
-                      {topic}
-                    </button>
+                    </a>
                   ))}
                 </div>
 
@@ -312,15 +396,39 @@ export function ChatWidget() {
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => navigate(`/dashboard?q=${encodeURIComponent(results.query)}`)}
+                    onClick={() => navigate(`/dashboard?q=${encodeURIComponent(message.resultQuery ?? "")}`)}
                   >
                     View all results
                   </Button>
                 )}
-              </>
+              </div>
             )}
           </div>
+        ))}
+
+        {/* Waiting on the live API */}
+        {loading && (
+          <div className="pl-9">
+            <div className="flex items-center gap-2 rounded-xl bg-secondary px-3.5 py-2.5">
+              <Search className="w-3.5 h-3.5 text-primary animate-pulse" />
+              <p className="text-xs text-muted-foreground">Searching for the best matches...</p>
+            </div>
+          </div>
         )}
+
+        {/* Quick topic chips under the conversation */}
+        <div className="flex flex-wrap gap-1.5 pt-0.5 pl-9">
+          {TOPIC_CHIPS.map((topic) => (
+            <button
+              key={topic}
+              type="button"
+              onClick={() => sendQuery(topic.replace(/^\S+\s/, ""))}
+              className="rounded-full border border-border bg-secondary/60 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              {topic}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Input */}
@@ -337,7 +445,7 @@ export function ChatWidget() {
           placeholder="Ask about repos, languages, topics..."
           className="flex-1"
         />
-        <Button ref={sendBtnRef} type="submit" size="icon" aria-label="Send" disabled={!input.trim()}>
+        <Button ref={sendBtnRef} type="submit" size="icon" aria-label="Send" disabled={!input.trim() || loading}>
           <Send className="w-4 h-4" />
         </Button>
       </form>

@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { GithubIcon } from "@/components/icons/GithubIcon";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Radar, LogOut } from "lucide-react";
 
 const API_BASE = "http://localhost:5000";
@@ -51,6 +52,7 @@ export function Header() {
 
           {/* Right side */}
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {isLoggedIn ? (
               <div className="flex items-center gap-3">
                 {user?.avatar && (

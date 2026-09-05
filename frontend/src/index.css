@@ -45,6 +45,42 @@
   --font-heading: "Poppins", "Inter", -apple-system, sans-serif;
 }
 
+/* Dark theme — toggled by setting data-theme="dark" on <html> (see ThemeContext). */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --background: 20 14% 7%;
+  --foreground: 30 20% 96%;
+
+  --primary: 22 92% 55%;
+  --primary-foreground: 0 0% 100%;
+  --primary-light: 32 95% 68%;
+
+  --secondary: 24 10% 14%;
+  --secondary-foreground: 30 20% 96%;
+
+  --accent: 22 92% 55%;
+  --accent-foreground: 0 0% 100%;
+
+  --success: 142 71% 45%;
+
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 24 10% 19%;
+  --input: 24 10% 19%;
+  --ring: 22 92% 55%;
+
+  --muted: 24 10% 14%;
+  --muted-foreground: 30 8% 64%;
+
+  --card: 24 12% 11%;
+  --card-foreground: 30 20% 96%;
+}
+
+/* Makes Tailwind's dark: variant follow the data-theme attribute instead of the OS preference. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* Maps design tokens onto Tailwind utilities (bg-primary, text-foreground, ...) */
 @theme inline {
   --color-background: hsl(var(--background));
@@ -100,6 +136,77 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: var(--font-sans);
+}
+
+/*
+ * Glossy glass treatment in dark mode. Every surface painted with the
+ * bg-card utility becomes slightly translucent, blurs whatever sits behind
+ * it, and picks up a diagonal sheen, a hairline top highlight, and a faint
+ * primary-tinted halo — no per-component changes needed. Higher specificity
+ * than the utilities, so these declarations win (black drop shadows are
+ * invisible on a dark ground anyway, so replacing them loses nothing).
+ */
+[data-theme="dark"] .bg-card {
+  background-color: hsl(var(--card) / 0.78);
+  background-image: linear-gradient(
+    160deg,
+    hsl(0 0% 100% / 0.09),
+    hsl(0 0% 100% / 0.025) 45%,
+    hsl(0 0% 100% / 0) 75%
+  );
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.08),
+    0 0 24px hsl(var(--primary) / 0.06),
+    0 10px 32px hsl(0 0% 0% / 0.35);
+}
+
+/* Interactive glass cards (repo links, pill buttons) brighten their glow on hover. */
+[data-theme="dark"] a.bg-card:hover,
+[data-theme="dark"] button.bg-card:hover {
+  box-shadow:
+    inset 0 1px 0 hsl(0 0% 100% / 0.12),
+    0 0 30px hsl(var(--primary) / 0.2),
+    0 10px 32px hsl(0 0% 0% / 0.35);
+}
+
+/* Softer sheen on secondary surfaces (chat bubbles, chips, panels). */
+[data-theme="dark"] .bg-secondary {
+  background-image: linear-gradient(
+    160deg,
+    hsl(0 0% 100% / 0.05),
+    hsl(0 0% 100% / 0) 65%
+  );
+}
+
+/*
+ * Subtle glow accents in dark mode.
+ * The page gets two faint primary-tinted ambient halos, and every element
+ * carrying the primary gradient (buttons, icon tiles, badges — all end in
+ * the to-primary utility) breathes a soft orange glow.
+ */
+[data-theme="dark"] body {
+  background-image:
+    radial-gradient(55rem 40rem at 85% -10%, hsl(var(--primary) / 0.08), transparent 60%),
+    radial-gradient(45rem 32rem at -10% 105%, hsl(var(--primary) / 0.05), transparent 60%);
+  background-attachment: fixed;
+}
+
+[data-theme="dark"] .to-primary {
+  box-shadow: 0 0 18px hsl(var(--primary) / 0.35);
+  animation: glow-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes glow-breathe {
+  0%, 100% { box-shadow: 0 0 14px hsl(var(--primary) / 0.28); }
+  50% { box-shadow: 0 0 26px hsl(var(--primary) / 0.5); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="dark"] .to-primary {
+    animation: none;
+  }
 }
 
 /* Hides the scrollbar on the horizontal snap-scroll container while keeping it scrollable. */

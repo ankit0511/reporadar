@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Clock, MessageCircle, Star, Search, X } from "lucide-react";
+import { Clock, MessageCircle, Moon, Star, Search, Sun, X } from "lucide-react";
 import { describeSearch } from "@/lib/constants";
+import { useTheme } from "@/context/ThemeContext";
 import { cn } from "@/lib/utils";
 import type { RecentSearch } from "@/types";
 
@@ -83,6 +84,7 @@ export function DashboardSidebar({ recentSearches, onSelectSearch, onOpenChat, o
   const [historyOpen, setHistoryOpen] = useState(false);
   const [filter, setFilter] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     if (!historyOpen) return;
@@ -182,6 +184,14 @@ export function DashboardSidebar({ recentSearches, onSelectSearch, onOpenChat, o
 
       <SidebarIconButton icon={MessageCircle} onClick={onOpenChat} label="Chat" />
       <SidebarIconButton icon={Star} active={savedActive} onClick={onOpenSaved} label="Saved" />
+
+      <div className="mt-auto">
+        <SidebarIconButton
+          icon={theme === "dark" ? Sun : Moon}
+          onClick={toggleTheme}
+          label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        />
+      </div>
     </aside>
   );
 }

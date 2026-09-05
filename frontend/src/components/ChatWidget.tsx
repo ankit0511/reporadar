@@ -72,9 +72,16 @@ function centerOf(el: HTMLElement, container: HTMLElement) {
 // Reveals `text` a few characters at a time, like a message being typed live.
 function TypedText({ text, speed = 50 }: { text: string; speed?: number }) {
   const [count, setCount] = useState(0);
+  const [prevText, setPrevText] = useState(text);
+
+  // Reset the animation during render when the text prop changes, instead of
+  // in the effect — avoids an extra cascading render (react.dev/learn/you-might-not-need-an-effect).
+  if (prevText !== text) {
+    setPrevText(text);
+    setCount(0);
+  }
 
   useEffect(() => {
-    setCount(0);
     const interval = window.setInterval(() => {
       setCount((prev) => {
         if (prev >= text.length) {
@@ -255,7 +262,6 @@ export function ChatWidget() {
     return () => {
       interruptedRef.current = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const cancelDemo = () => {

@@ -80,6 +80,11 @@ app.use(
     cookie: {
       httpOnly: true, // Can't be accessed by JavaScript, only HTTP requests
       secure: process.env.NODE_ENV === "production", // Only HTTPS in production
+      // In production the frontend and API live on different domains, so the
+      // session cookie is cross-site: browsers drop it unless it is explicitly
+      // SameSite=None (which in turn requires Secure). Locally both sides are
+      // localhost, where "lax" works and "none" without HTTPS would be dropped.
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     },
   })

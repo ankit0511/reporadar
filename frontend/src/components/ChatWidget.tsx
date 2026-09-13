@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 interface WidgetRepo {
   id: number;

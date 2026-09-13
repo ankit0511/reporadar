@@ -3,7 +3,7 @@ import type { User, AuthContextType } from "../types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE =  "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,

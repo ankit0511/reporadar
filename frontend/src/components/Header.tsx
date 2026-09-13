@@ -3,7 +3,7 @@ import { GithubIcon } from "@/components/icons/GithubIcon";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Radar, LogOut } from "lucide-react";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const NAV_LINKS = [
   { label: "Features", panel: 2 },

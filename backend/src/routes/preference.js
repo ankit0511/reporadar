@@ -3,6 +3,25 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
+router.use((req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Unauthorized", message: "You must be logged in" });
+  }
+  next();
+});
+
+// githubId is public info, so the URL param alone proves nothing — every
+// route here must only ever act on the logged-in user's own record.
+router.param("githubId", (req, res, next, githubId) => {
+  if (String(githubId) !== String(req.user.githubId)) {
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "You can only access your own preferences",
+    });
+  }
+  next();
+});
+
 router.post("/:githubId", async (req, res) => {
   try {
     const { githubId } = req.params;
@@ -36,8 +55,12 @@ router.post("/:githubId", async (req, res) => {
           onboardingCompleted: true
         }
       },
-      { new: true, upsert: true }
+      { new: true }
     );
+
+    if (!user) {
+      return res.status(404).json({ error: "No user found" });
+    }
 
     res.status(200).json({
       message: "Preference uploaded successfully",
@@ -62,7 +85,6 @@ router.get("/:githubId", async (req, res) => {
     }
 
     const preferences = await User.findOne({ githubId });
-    console.log("pref", preferences)
     if (!preferences) {
       return res.status(404).json({
         error: "No user found",

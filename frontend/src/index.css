@@ -11,14 +11,14 @@
 :root {
   color-scheme: light;
 
-  --background: 0 0% 91%;
+  --background: 30 27% 96%;
   --foreground: 20 14% 8%;
 
   --primary: 22 92% 53%;
   --primary-foreground: 0 0% 100%;
   --primary-light: 32 95% 68%;
 
-  --secondary: 30 20% 95%;
+  --secondary: 30 20% 93%;
   --secondary-foreground: 20 14% 8%;
 
   --accent: 22 92% 53%;
@@ -29,12 +29,12 @@
   --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
 
-  --border: 30 12% 89%;
-  --input: 30 12% 89%;
+  --border: 30 14% 87%;
+  --input: 30 14% 87%;
   --ring: 22 92% 53%;
 
-  --muted: 30 20% 95%;
-  --muted-foreground: 20 8% 46%;
+  --muted: 30 20% 93%;
+  --muted-foreground: 20 8% 42%;
 
   --card: 0 0% 100%;
   --card-foreground: 20 14% 8%;
@@ -136,6 +136,27 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Keeps multi-line headings from ending in a lonely word. */
+h1, h2, h3, h4 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+::selection {
+  background-color: hsl(var(--primary) / 0.25);
+}
+
+/* Thin, theme-aware scrollbars instead of the chunky OS default. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
 }
 
 /*
@@ -181,16 +202,42 @@ body {
 }
 
 /*
- * Subtle glow accents in dark mode.
- * The page gets two faint primary-tinted ambient halos, and every element
- * carrying the primary gradient (buttons, icon tiles, badges — all end in
- * the to-primary utility) breathes a soft orange glow.
+ * Ambient page depth — two large, faint primary-tinted halos anchored to
+ * the viewport. Applied to the bg-background utility too (sections and
+ * panels paint over the body), with fixed attachment so every element
+ * shows the same viewport-aligned slice and the halos read as one wash.
  */
-[data-theme="dark"] body {
+body,
+.bg-background {
   background-image:
-    radial-gradient(55rem 40rem at 85% -10%, hsl(var(--primary) / 0.08), transparent 60%),
-    radial-gradient(45rem 32rem at -10% 105%, hsl(var(--primary) / 0.05), transparent 60%);
+    radial-gradient(55rem 40rem at 85% -10%, hsl(var(--primary) / 0.05), transparent 60%),
+    radial-gradient(45rem 32rem at -10% 105%, hsl(var(--primary) / 0.04), transparent 60%);
   background-attachment: fixed;
+}
+
+/*
+ * Subtle glow accents in dark mode: the ambient halos strengthen, and
+ * every element carrying the primary gradient (buttons, icon tiles,
+ * badges — all end in the to-primary utility) breathes a soft orange glow.
+ */
+[data-theme="dark"] body,
+[data-theme="dark"] .bg-background {
+  background-image:
+    radial-gradient(55rem 40rem at 85% -10%, hsl(var(--primary) / 0.09), transparent 60%),
+    radial-gradient(45rem 32rem at -10% 105%, hsl(var(--primary) / 0.06), transparent 60%);
+}
+
+/*
+ * Light-mode dimensionality: white cards pick up the faintest warm tint
+ * toward their bottom edge, so they read as lit from above rather than
+ * flat. Alpha-based, so hover background changes still show through.
+ */
+:root:not([data-theme="dark"]) .bg-card {
+  background-image: linear-gradient(
+    180deg,
+    hsl(0 0% 100% / 0) 40%,
+    hsl(30 25% 40% / 0.035)
+  );
 }
 
 [data-theme="dark"] .to-primary {

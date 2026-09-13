@@ -11,11 +11,20 @@ dotenv.config({ path: path.join(__dirname, "../.env") });
 console.log("✓ Environment loaded");
 console.log("✓ GitHub Client ID:", process.env.GITHUB_CLIENT_ID ? "✓ Set" : "✗ Missing");
 
+// A guessable session secret lets anyone forge login cookies, so refuse to
+// boot in production without a real one.
+if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
+  console.error("FATAL: SESSION_SECRET must be set in production");
+  process.exit(1);
+}
+
 // NOW dynamically import everything that depends on env vars
 const express = (await import("express")).default;
 const session = (await import("express-session")).default;
 const MongoStore = (await import("connect-mongo")).default;
 const cors = (await import("cors")).default;
+const helmet = (await import("helmet")).default;
+const rateLimit = (await import("express-rate-limit")).default;
 const passport = (await import("./config/passport.js")).default;
 const repoRoute = (await import("./routes/repos.js")).default;
 const preferenceRoute = (await import("./routes/preference.js")).default;
@@ -28,6 +37,13 @@ const connectDB = (await import("./config/db.js")).default;
 
 const app = express();
 
+// In production the app sits behind a hosting proxy (Render/Railway/Heroku/
+// etc.); without this, Express sees plain HTTP and refuses to send the
+// `secure` session cookie, silently breaking login.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 connectDB();
 
 // Middleware order matters:
@@ -35,6 +51,8 @@ connectDB();
 // 2. CORS (allow frontend requests from different origin)
 // 3. Session (sets req.session for passport to use)
 // 4. Passport (uses req.session to remember logged-in user)
+
+app.use(helmet());
 
 app.use(express.json());
 
@@ -71,12 +89,32 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Rate limits: a general per-IP cap on the whole API, plus a much stricter
+// one on /api/ai since each request costs real money (Gemini).
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later" },
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many AI requests, please slow down" },
+});
+
+app.use("/api", apiLimiter);
+
 // Routes
 app.use("/api/auth", authRoute);
 app.use("/api/repos", repoRoute);
 app.use("/api/preference", preferenceRoute);
 app.use("/api/activity", activityRoute);
-app.use("/api/ai", aiRoute);
+app.use("/api/ai", aiLimiter, aiRoute);
 app.use("/api/chat", chatHistoryRoute);
 app.use("/api/users", usersRoute);
 

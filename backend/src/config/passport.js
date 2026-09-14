@@ -34,10 +34,17 @@ passport.use(
         const profileUrl = profile.profileUrl || null;
 
         // Geocoding is a network call — only pay for it when the location
-        // actually changed (new signup, or the user updated it on GitHub).
+        // actually changed (new signup, or the user updated it on GitHub),
+        // or when a previous attempt left us without coordinates. Nominatim
+        // rate-limits and occasionally blocks datacenter IPs, so a signup can
+        // land a location with no coordinates; without the retry that user
+        // would be missing from the map permanently, since the location
+        // string matches on every later login and the lookup is skipped.
         const existing = await User.findOne({ githubId: profile.id });
         let coordinates = existing?.coordinates ?? null;
-        if (location !== (existing?.location ?? null)) {
+        const locationChanged = location !== (existing?.location ?? null);
+        const missingCoordinates = Boolean(location) && !coordinates;
+        if (locationChanged || missingCoordinates) {
           coordinates = location ? await geocodeLocation(location) : null;
         }
 

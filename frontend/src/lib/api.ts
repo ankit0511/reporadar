@@ -6,6 +6,19 @@ interface FetchOptions extends RequestInit {
   params?: Record<string, any>;
 }
 
+export interface ApiErrorBody {
+  error?: string;
+  message?: string;
+  code?: string;
+  [key: string]: any;
+}
+
+export interface ApiError extends Error {
+  status?: number;
+  code?: string;
+  body?: ApiErrorBody | null;
+}
+
 export async function apiCall(
   endpoint: string,
   options: FetchOptions = {}
@@ -36,7 +49,22 @@ export async function apiCall(
     });
 
     if (!response.ok) {
-      const error = new Error(`API Error: ${response.status}`);
+      // Keep the server's own error payload on the thrown error. Callers need
+      // it to tell failures apart — a quota refusal has to render an upgrade
+      // prompt, not the generic "something went wrong" message.
+      let body: ApiErrorBody | null = null;
+      try {
+        body = await response.json();
+      } catch {
+        // Error responses aren't always JSON (proxy errors, HTML pages).
+      }
+
+      const error = new Error(
+        body?.message || `API Error: ${response.status}`
+      ) as ApiError;
+      error.status = response.status;
+      error.code = body?.code;
+      error.body = body;
       throw error;
     }
 

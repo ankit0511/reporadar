@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Send, Radar as RadarIcon, MousePointer2, Search, Check, Star, Package, User as UserIcon } from "lucide-react";
+import { Send, Radar as RadarIcon, MousePointer2, Search, Check, Star, Package, User as UserIcon, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
+import type { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -30,6 +31,8 @@ interface ChatMessage {
   resultQuery?: string;
   // Renders a "Sign in with GitHub" button under the bubble.
   signInPrompt?: boolean;
+  // Renders the "upgrade coming soon" card when the daily AI limit is hit.
+  upgradePrompt?: boolean;
 }
 
 const formatTime = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -174,12 +177,20 @@ export function ChatWidget() {
           resultQuery: query.trim(),
         }]);
       }
-    } catch {
+    } catch (err) {
+      // A spent daily allowance isn't a failure — tell the user plainly and
+      // offer the upgrade path instead of the generic error message.
+      const apiError = err as ApiError;
+      const outOfQuota = apiError?.code === "QUOTA_EXCEEDED";
+
       setMessages((prev) => [...prev, {
         id: Date.now() + 1,
         role: "assistant",
-        content: "Something went wrong processing that — please try again.",
+        content: outOfQuota
+          ? apiError.message ?? "You've used all your AI searches for today."
+          : "Something went wrong processing that — please try again.",
         time: formatTime(),
+        upgradePrompt: outOfQuota,
       }]);
     } finally {
       loadingRef.current = false;
@@ -353,6 +364,23 @@ export function ChatWidget() {
                 <Button type="button" variant="dark" size="sm" onClick={handleSignIn}>
                   Sign in with GitHub
                 </Button>
+              </div>
+            )}
+
+            {message.upgradePrompt && (
+              <div className="w-full pl-9 mt-1">
+                <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 px-3.5 py-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <p className="text-xs font-semibold text-foreground">Need more searches?</p>
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Unlimited AI discovery is on the way. Your free searches reset at midnight UTC.
+                  </p>
+                  <Button type="button" variant="dark" size="sm" disabled className="mt-2.5 cursor-not-allowed">
+                    Upgrade — coming soon
+                  </Button>
+                </div>
               </div>
             )}
 

@@ -14,6 +14,7 @@ import type { ChatMessage } from "@/components/ChatView";
 import { RepoCard } from "@/components/RepoCard";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
+import type { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { LANGUAGE_OPTIONS, TOPIC_OPTIONS, EXPERIENCE_LEVELS } from "@/lib/constants";
 import type { Repo, Visit, VisitStatus, RecentSearch } from "@/types";
@@ -245,13 +246,23 @@ export function Dashboard() {
         }]);
         persistChatMessage("assistant", reply, repositories);
       }
-    } catch {
+    } catch (err) {
+      // Running out of the daily AI allowance is an expected outcome, not an
+      // error — surface the server's explanation so the user knows when it
+      // resets rather than seeing a generic failure.
+      const apiError = err as ApiError;
+      const outOfQuota = apiError?.code === "QUOTA_EXCEEDED";
+      const reply = outOfQuota
+        ? apiError.message ?? "You've used all your AI searches for today."
+        : "Something went wrong processing that — please try again.";
+
       setChatMessages((prev) => [...prev, {
         id: Date.now() + 1,
         role: "assistant",
-        text: "Something went wrong processing that — please try again.",
+        text: reply,
         time: formatTime(),
       }]);
+      if (outOfQuota) persistChatMessage("assistant", reply);
     } finally {
       setChatLoading(false);
     }

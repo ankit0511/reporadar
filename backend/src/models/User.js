@@ -55,6 +55,14 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // Daily Gemini allowance. Each call costs real money, so usage is
+    // capped per user per day. Stored as a (UTC date, count) pair rather
+    // than a separate collection — there is only ever one row per user,
+    // and it resets lazily on the first query of a new day.
+    aiUsage: {
+        date: { type: String, default: "" },
+        count: { type: Number, default: 0 }
+    },
     // Capped, newest-first log of past searches — no per-item status to
     // track, so a plain sliced array is enough (unlike visits, which get
     // their own collection).

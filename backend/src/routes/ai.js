@@ -1,6 +1,7 @@
 import express from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import searchGitHubRepos, { buildGitHubQuery } from "../utils/githubSearch.js";
+import User from "../models/User.js";
 
 const router = express.Router();
 
@@ -167,6 +168,50 @@ If action is "chat", use this shape:
   }
 }
 
+// Each Gemini call costs real money, so every user gets a small daily
+// allowance. The express-rate-limit cap on /api/ai is per-IP and only spans
+// 5 minutes — it stops bursts, not a single user burning the budget steadily
+// all day. This is the per-account limit.
+const AI_DAILY_LIMIT = Number(process.env.AI_DAILY_LIMIT) || 10;
+
+// Days roll over at UTC midnight rather than in the user's timezone: the
+// server has no reliable way to know that timezone, and a fixed boundary is
+// easier to reason about than a per-user one.
+function utcDay() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Returns how many queries the user has now spent today, counting this one.
+// The increment is a single conditional update so two concurrent requests
+// can't both read the same count and both write count+1, which would let a
+// user slip past the limit by firing requests in parallel.
+async function consumeDailyQuota(userId) {
+  const today = utcDay();
+
+  const incremented = await User.findOneAndUpdate(
+    { _id: userId, "aiUsage.date": today },
+    { $inc: { "aiUsage.count": 1 } },
+    { new: true, projection: { aiUsage: 1 } }
+  );
+  if (incremented) return incremented.aiUsage.count;
+
+  // No counter for today yet (first query of the day, or a brand new user)
+  // — start a fresh one, which is also what resets yesterday's count.
+  const reset = await User.findOneAndUpdate(
+    { _id: userId },
+    { $set: { aiUsage: { date: today, count: 1 } } },
+    { new: true, projection: { aiUsage: 1 } }
+  );
+  return reset?.aiUsage?.count ?? 1;
+}
+
+// Every response carries the user's remaining allowance so the UI can warn
+// them before they hit zero instead of only at the wall.
+function quotaInfo(used) {
+  const spent = Math.min(used, AI_DAILY_LIMIT);
+  return { used: spent, limit: AI_DAILY_LIMIT, remaining: Math.max(0, AI_DAILY_LIMIT - spent) };
+}
+
 // POST /api/ai/query
 router.post("/query", async (req, res) => {
   try {
@@ -193,6 +238,20 @@ router.post("/query", async (req, res) => {
       });
     }
 
+    // Spend one unit of the daily allowance before doing any work. Counting
+    // here rather than only on Gemini calls keeps the limit predictable for
+    // the user: one message, one unit, whatever path it takes internally.
+    const used = await consumeDailyQuota(req.user._id);
+    if (used > AI_DAILY_LIMIT) {
+      return res.status(429).json({
+        error: "Daily limit reached",
+        code: "QUOTA_EXCEEDED",
+        message: `You've used all ${AI_DAILY_LIMIT} AI searches for today. Your allowance resets at midnight UTC.`,
+        quota: quotaInfo(used)
+      });
+    }
+    const quota = quotaInfo(used);
+
     // Only the last few turns are needed for conversational context — cap
     // it so the prompt stays small and older turns don't skew the intent.
     const trimmedHistory = Array.isArray(history) ? history.slice(-6) : [];
@@ -203,24 +262,24 @@ router.post("/query", async (req, res) => {
     // Plain conversation (greeting, thanks, follow-up) — reply directly,
     // no GitHub call this turn.
     if (parsed?.action === "chat") {
-      return res.json({ type: "chat", message: parsed.message || "Got it!" });
+      return res.json({ type: "chat", message: parsed.message || "Got it!", quota });
     }
 
     // Too vague to search — ask exactly one follow-up question instead of
     // guessing, no GitHub call this turn.
     if (parsed?.action === "clarify") {
-      return res.json({ type: "clarify", message: parsed.message || "Could you tell me a bit more about what you're looking for?" });
+      return res.json({ type: "clarify", message: parsed.message || "Could you tell me a bit more about what you're looking for?", quota });
     }
 
     // "Who am I?" — answered entirely from the DB record, never by the
     // model, so the facts are always real.
     if (parsed?.action === "profile") {
-      return res.json({ type: "chat", message: buildProfileReply(req.user) });
+      return res.json({ type: "chat", message: buildProfileReply(req.user), quota });
     }
 
     // Off-topic question — fixed refusal, no model-written answer.
     if (parsed?.action === "out_of_scope") {
-      return res.json({ type: "chat", message: OUT_OF_SCOPE_MESSAGE });
+      return res.json({ type: "chat", message: OUT_OF_SCOPE_MESSAGE, quota });
     }
 
     // Gemini didn't classify this turn at all (down, rate-limited, bad JSON)
@@ -228,11 +287,11 @@ router.post("/query", async (req, res) => {
     // defaulting to a search.
     if (!parsed) {
       if (/^(who\s*am\s*i|what('?s| is| are) my (name|profile|preferences?))\??[!.\s]*$/i.test(trimmedQuery)) {
-        return res.json({ type: "chat", message: buildProfileReply(req.user) });
+        return res.json({ type: "chat", message: buildProfileReply(req.user), quota });
       }
       const smallTalk = localSmallTalkReply(trimmedQuery);
       if (smallTalk) {
-        return res.json({ type: "chat", message: smallTalk });
+        return res.json({ type: "chat", message: smallTalk, quota });
       }
     }
 
@@ -240,7 +299,7 @@ router.post("/query", async (req, res) => {
     // action we don't recognize, refuse rather than letting the message leak
     // through to a GitHub search (or worse, a free-form answer).
     if (parsed && parsed.action !== "search") {
-      return res.json({ type: "chat", message: OUT_OF_SCOPE_MESSAGE });
+      return res.json({ type: "chat", message: OUT_OF_SCOPE_MESSAGE, quota });
     }
 
     // "search" action, or Gemini unavailable/errored/returned bad JSON —
@@ -267,7 +326,8 @@ router.post("/query", async (req, res) => {
       type: "result",
       explanation: parsed?.explanation || "Here are some repositories that match your request.",
       repositories: result.repositories,
-      total: result.total
+      total: result.total,
+      quota
     });
   } catch (error) {
     console.error("AI query error:", error);

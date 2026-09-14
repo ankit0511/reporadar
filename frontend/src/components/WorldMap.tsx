@@ -37,11 +37,7 @@ export function WorldMap({ users, activeIds = [] }: WorldMapProps) {
               geography={geo}
               fill="hsl(var(--foreground) / 0.12)"
               stroke="none"
-              style={{
-                default: { outline: "none" },
-                hover: { outline: "none" },
-                pressed: { outline: "none" },
-              }}
+              style={{ outline: "none" }}
             />
           ))
         }
